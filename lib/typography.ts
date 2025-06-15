@@ -33,427 +33,213 @@ export class AdvancedTypographyProcessor {
   private static readonly THIN_SPACE = '\u2009';
   private static readonly EM_DASH = '—';
   private static readonly ELLIPSIS = '…';
-  private static readonly EN_SPACE = '\u2002';
+  private static readonly EN_DASH = '–';
 
   /**
    * Определяет, является ли текст стихотворением
    */
   static isPoetry(text: string): boolean {
     const lines = text.split('\n').filter(line => line.trim().length > 0);
-    
-    // Признаки стихотворения:
+    if (lines.length < 2) return false;
+
     let poetryScore = 0;
-    
-    // 1. Короткие строки (меньше 60 символов в среднем)
     const avgLineLength = lines.reduce((sum, line) => sum + line.trim().length, 0) / lines.length;
     if (avgLineLength < 60) poetryScore += 2;
-    
-    // 2. Много переносов строк
+
     const lineBreaks = (text.match(/\n/g) || []).length;
     const wordCount = text.split(/\s+/).length;
-    if (lineBreaks / wordCount > 0.1) poetryScore += 2;
-    
-    // 3. Табуляции в начале строк (лесенка)
+    if (wordCount > 0 && lineBreaks / wordCount > 0.1) poetryScore += 2;
+
     const indentedLines = lines.filter(line => line.match(/^\s{2,}/) || line.startsWith('\t')).length;
     if (indentedLines / lines.length > 0.3) poetryScore += 3;
-    
-    // 4. Заглавные буквы в начале строк
+
     const capitalizedLines = lines.filter(line => /^[А-ЯЁA-Z]/.test(line.trim())).length;
     if (capitalizedLines / lines.length > 0.7) poetryScore += 1;
-    
-    // 5. Ритмичность (повторяющаяся длина строк)
+
     const lineLengths = lines.map(line => line.trim().length);
-    const lengthVariance = this.calculateVariance(lineLengths);
+    const lengthVariance = lineLengths.reduce((sum, len) => sum + Math.pow(len - avgLineLength, 2), 0) / lineLengths.length;
     if (lengthVariance < 100) poetryScore += 1;
-    
-    return poetryScore >= 4;
+
+    return poetryScore >= 5;
   }
 
   /**
-   * Вычисляет дисперсию массива чисел
+   * Основной метод обработки текста
    */
-  private static calculateVariance(numbers: number[]): number {
-    const mean = numbers.reduce((sum, num) => sum + num, 0) / numbers.length;
-    const squaredDiffs = numbers.map(num => Math.pow(num - mean, 2));
-    return squaredDiffs.reduce((sum, diff) => sum + diff, 0) / numbers.length;
+  static processText(text: string): string {
+    if (this.isPoetry(text)) {
+      return this.processPoetryText(text);
+    }
+    return this.processRegularText(text);
   }
 
   /**
-   * Обрабатывает текст с сохранением форматирования
+   * Алиас для обратной совместимости (старые вызовы TypographyProcessor.process)
    */
-  static processWithFormatting(paragraphs: FormattedParagraph[]): FormattedParagraph[] {
-    const fullText = paragraphs.map(p => 
-      p.content.map(c => c.text).join('')
-    ).join('\n');
-    
-    const isPoetryText = this.isPoetry(fullText);
-    
-    return paragraphs.map(paragraph => {
-      const processedContent = paragraph.content.map(item => ({
-        ...item,
-        text: isPoetryText 
-          ? this.processPoetryText(item.text)
-          : this.processRegularText(item.text)
-      }));
-
-      return {
-        ...paragraph,
-        content: processedContent,
-        style: isPoetryText && paragraph.style === 'normal' ? 'poetry' : paragraph.style
-      };
-    });
+  static process(text: string): string {
+    return this.processText(text);
   }
 
   /**
    * Обработка обычного текста
    */
   static processRegularText(text: string): string {
-    let result = text;
-
-    // Основные правила типографики
-    result = this.applyBasicRules(result);
-    result = this.applyNonBreakingSpaces(result);
-    result = this.applyPunctuation(result);
-    
-    // Удаляем все пустые строки в конце текста
-    result = result.replace(/(\r?\n)+$/g, '');
-
-    return result;
+    return this.applyBasicRules(text);
   }
 
   /**
-   * Обработка стихотворного текста с сохранением структуры
+   * Обработка стихов (более мягкие правила)
    */
   static processPoetryText(text: string): string {
-    let result = text;
-    
-    // Сохраняем табуляции и отступы
-    const lines = result.split('\n');
-    const processedLines = lines.map(line => {
-      // Сохраняем начальные пробелы и табуляции
-      const indent = line.match(/^[\s\t]*/)?.[0] || '';
-      const content = line.substring(indent.length);
-      
-      if (content.trim().length === 0) {
-        return line; // Пустые строки не обрабатываем
-      }
-      
-      // Обрабатываем только содержимое, сохраняя отступы
-      let processedContent = content;
-      
-      // Мягкая обработка для стихов (меньше изменений)
-      processedContent = this.applyPoetryRules(processedContent);
-      
-      return indent + processedContent;
-    });
-    
-    return processedLines.join('\n');
+    let processedText = text;
+    // В стихах применяем только самые необходимые правила,
+    // чтобы не нарушить авторский ритм и разбивку строк.
+    processedText = processedText.replace(/--/g, this.EM_DASH); // Двойной дефис в тире
+    processedText = processedText.replace(/(^|\s|[(])\"/g, `$1«`); // Кавычки-елочки
+    processedText = processedText.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
+    return processedText;
   }
 
   /**
-   * Применяет базовые правила типографики
+   * Применение базовых правил типографики
    */
   private static applyBasicRules(text: string): string {
-    let result = text;
+    if (!text || typeof text !== 'string') return text;
 
-    // 0. Защита от слипания слов: временно заменяем > < на >\u200B< (невидимый разделитель)
-    result = result.replace(/>\s+</g, '>\u200B<');
+    const NBSP = this.NON_BREAKING_SPACE;
+    const THIN_SPACE = this.THIN_SPACE;
+    const EM_DASH = this.EM_DASH;
+    const ELLIPSIS = this.ELLIPSIS;
 
-    // 1. Множественные пробелы (заменяем любые последовательности пробельных символов, кроме \n, на один пробел)
-    result = result.replace(/[ \t\v\f\r]{2,}/g, ' ');
-    // 1a. Убираем пробелы в начале и конце каждой строки (но не трогаем внутренние пробелы между словами)
-    result = result.replace(/^[ \t]+|[ \t]+$/gm, '');
-
-    // 1b. Между знаком № и цифрой всегда неразрывный пробел
-    result = result.replace(/№\s*(\d+)/g, '№\u00A0$1');
-
-    // 2. Защита дефиса между буквами (буква-дефис-буква, сложные слова, фамилии, топонимы и т.д.)
-    result = result.replace(/(\p{L})-(\p{L})/gu, '$1[[HYPHEN]]$2');
-
-    // 3. Защита дефиса в сложных словах и наречиях
-    const hyphenWords = [
-      'из-за', 'из-под', 'по-русски', 'по-моему', 'по-твоему', 'по-нашему', 'по-вашему',
-      'кое-что', 'кое-как', 'кто-нибудь', 'что-нибудь', 'где-нибудь', 'когда-либо',
-      'как-то', 'все-таки', 'по-своему', 'по-старому', 'по-новому', 'по-английски',
-      'по-французски', 'по-немецки', 'по-итальянски', 'по-испански', 'по-китайски',
-      'по-японски', 'по-украински', 'по-белорусски', 'по-польски', 'по-чешски',
-      'по-гречески', 'по-турецки', 'по-арабски', 'по-еврейски', 'по-латински',
-      'по-современному', 'по-старинному', 'по-детски', 'по-взрослому', 'по-товарищески',
-      'по-приятельски', 'по-родственному', 'по-отечески', 'по-матерински', 'по-братски',
-      'по-сестрински', 'по-деловому', 'по-дружески', 'по-особенному', 'по-особому'
-    ];
-    hyphenWords.forEach(word => {
-      // Защищаем оба варианта: с "е" и с "ё" (например, всё-таки/все-таки)
-      const safe = word.replace(/-/g, '[[HYPHEN]]');
-      const regex = new RegExp(word.replace('е', '[её]'), 'gi');
-      result = result.replace(regex, safe);
-    });
-
-    // 4. Защита сокращений
-    result = result
-      .replace(/\bт\.-е\./gi, '[[T_E]]')
-      .replace(/\bт\.-д\./gi, '[[T_D]]')
-      .replace(/\bт\.-п\./gi, '[[T_P]]')
-      .replace(/\bт\.-к\./gi, '[[T_K]]')
-      .replace(/\bт\.-н\./gi, '[[T_N]]')
-      .replace(/\bт\.-о\./gi, '[[T_O]]')
-      .replace(/\bи\ т\.-д\./gi, '[[I_T_D]]');
-
-    // 5. Диапазон чисел: 1966-1977 → 1966–1977 (en dash), без пробелов вокруг
-    result = result.replace(/(\d{1,4})\s*-\s*(\d{1,4})/g, '$1–$2');
-    // 5a. Удаляем пробелы вокруг en dash между числами (2020 - 2021 → 2020–2021)
-    result = result.replace(/(\d{1,4})\s*–\s*(\d{1,4})/g, '$1–$2');
-
-    // 6. en dash между словами или с пробелами → em dash с неразрывным пробелом
-    // (\s|^)–(\s) → \u00A0— 
-    result = result.replace(/(\s|^|\n)–(\s)/g, '$1\u00A0— ');
-    // Также: пробел en dash пробел
-    result = result.replace(/\s+–\s+/g, '\u00A0— ');
-
-    // 7. Пробел-длинное тире-пробел и пробел-дефис-пробел → неразрывный пробел—обычный пробел
-    result = result.replace(/\s+(-|—)\s+/g, '\u00A0— ');
-
-    // 8. Между словами (буква-пробел-дефис-пробел-буква)
-    // После тире всегда пробел
-    result = result.replace(/(\p{L})\s*-\s*(\p{L})/gu, '$1 — $2');
-    // После em dash/en dash между словами — всегда пробел, КРОМЕ диапазонов чисел
-    result = result.replace(/—(?!\d)(\S)/g, '— $1');
-    result = result.replace(/–(?!\d)(\S)/g, '– $1');
-
-    // 9. В начале строки (диалоги)
-    result = result.replace(/(^|\n)-\s/gu, '$1— ');
-
-    // 10. Возвращаем сокращения, дефисы внутри слов и сложных слов
-    result = result
-      .replace(/\[\[T_E\]\]/g, 'т.-е.')
-      .replace(/\[\[T_D\]\]/g, 'т.-д.')
-      .replace(/\[\[T_P\]\]/g, 'т.-п.')
-      .replace(/\[\[T_K\]\]/g, 'т.-к.')
-      .replace(/\[\[T_N\]\]/g, 'т.-н.')
-      .replace(/\[\[T_O\]\]/g, 'т.-о.')
-      .replace(/\[\[I_T_D\]\]/g, 'и т.д.')
-      .replace(/\[\[HYPHEN\]\]/g, '-');
-
-    // 11. Замена трех точек на многоточие
-    result = result.replace(/\.{3,}/g, this.ELLIPSIS);
-    
-    // 12. Пробелы перед знаками препинания
-    result = result.replace(/\s+([,.;:!?])/g, '$1');
-    
-    // 13. Пробелы после знаков препинания
-    result = result.replace(/([,.;:!?])([А-Яа-яёЁA-Za-z])/g, '$1 $2');
-    
-    // 14. Пробелы в скобках
-    result = result.replace(/\(\s+/g, '(');
-    result = result.replace(/\s+\)/g, ')');
-
-    // В самом конце: нормализуем двойные пробелы до одного
-    result = result.replace(/ {2,}/g, ' ');
-
-    // 99. Восстанавливаем невидимый разделитель между тегами
-    result = result.replace(/\u200B/g, ' ');
-
-    // После однобуквенных предлогов — неразрывный пробел (улучшенная регулярка)
-    result = result.replace(/(^|[\s.,;:!?"'«»()\[\]{}-])([вксуояи])\s+([А-Яа-яA-Za-z])/gmu, '$1$2\u00A0$3');
-
-    // Между числом и словом — неразрывный пробел
-    result = result.replace(/(\d)\s+([А-Яа-яA-Za-z])/g, '$1\u00A0$2');
-
-    return result;
-  }
-
-  /**
-   * Применяет правила для стихотворений (более деликатно)
-   */
-  private static applyPoetryRules(text: string): string {
-    let result = text;
-
-    // Только основные правила, не трогаем структуру
-    result = result.replace(/--/g, this.EM_DASH);
-    result = result.replace(/\.{3,}/g, this.ELLIPSIS);
-    
-    // Осторожно с пробелами в стихах
-    result = result.replace(/\s+([,.;:!?])/g, '$1');
-    result = result.replace(/([,.;:!?])([А-Яа-яёЁ])/g, '$1 $2');
-
-    return result;
-  }
-
-  /**
-   * Применяет неразрывные пробелы
-   */
-  private static applyNonBreakingSpaces(text: string): string {
-    let result = text;
-
-    // Короткие слова
-    const shortWords = ['а', 'в', 'и', 'к', 'о', 'с', 'у', 'не', 'на', 'от', 'до', 'за', 'из', 'по', 'со', 'во', 'об'];
-    shortWords.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\s+`, 'gi');
-      result = result.replace(regex, word + this.NON_BREAKING_SPACE);
-    });
-    
-    // Числа с единицами измерения
-    result = result.replace(/(\d+)\s+(кг|г|т|мг|мм|дм|см|м|км|л|мл|руб|коп|долл|евро)/gi, 
-      `$1${this.NON_BREAKING_SPACE}$2`);
-    
-    // Инициалы с фамилией
-    result = result.replace(/([А-ЯЁ]\.)\s+([А-ЯЁ]\.)\s+([А-ЯЁ][а-яё]+)/g, 
-      `$1${this.NON_BREAKING_SPACE}$2${this.NON_BREAKING_SPACE}$3`);
-
-    return result;
-  }
-
-  /**
-   * Применяет правила пунктуации
-   */
-  private static applyPunctuation(text: string): string {
-    let result = text;
-
-    // Диалоги
-    result = result.replace(/^\s*-\s*/gm, this.EM_DASH + this.EN_SPACE);
-    
-    // Проценты
-    result = result.replace(/(\d+)\s*%/g, `$1${this.THIN_SPACE}%`);
-
-    return result;
-  }
-
-  /**
-   * Определяет структуру четверостиший
-   */
-  static detectStanzaStructure(text: string): string[] {
-    const lines = text.split('\n');
-    const stanzas: string[] = [];
-    let currentStanza: string[] = [];
-    let emptyLineCount = 0;
-
-    for (const line of lines) {
-      if (line.trim().length === 0) {
-        emptyLineCount++;
-        if (emptyLineCount >= 1 && currentStanza.length > 0) {
-          // Конец строфы
-          stanzas.push(currentStanza.join('\n'));
-          currentStanza = [];
-          emptyLineCount = 0;
-        }
-      } else {
-        currentStanza.push(line);
-        emptyLineCount = 0;
-      }
-    }
-
-    // Добавляем последнюю строфу
-    if (currentStanza.length > 0) {
-      stanzas.push(currentStanza.join('\n'));
-    }
-
-    return stanzas;
-  }
-
-  /**
-   * Обрабатывает простой текст (для обратной совместимости)
-   */
-  static process(text: string): string {
-    const isPoetryText = this.isPoetry(text);
-    
-    if (isPoetryText) {
-      return this.processPoetryText(text);
-    } else {
-      return this.processRegularText(text);
-    }
-  }
-
-  /**
-   * Создает статистику обработки
-   */
-  static getProcessingStats(originalText: string, processedText: string): {
-    originalLength: number;
-    processedLength: number;
-    isPoetry: boolean;
-    spacesReplaced: number;
-    dashesReplaced: number;
-    ellipsisReplaced: number;
-    stanzaCount?: number;
-  } {
-    const isPoetryText = this.isPoetry(originalText);
-    
-    return {
-      originalLength: originalText.length,
-      processedLength: processedText.length,
-      isPoetry: isPoetryText,
-      spacesReplaced: (originalText.match(/[ ]{2,}/g) || []).length,
-      dashesReplaced: (originalText.match(/--/g) || []).length,
-      ellipsisReplaced: (originalText.match(/\.{3,}/g) || []).length,
-      stanzaCount: isPoetryText ? this.detectStanzaStructure(originalText).length : undefined,
+    // Защита составных слов и специальных конструкций
+    const protectedWords: string[] = [];
+    const protect = (match: string): string => {
+      protectedWords.push(match);
+      return `__PROTECTED_${protectedWords.length - 1}__`;
     };
+    text = text.replace(/\b(кто-то|что-то|где-то|когда-то|как-то|какой-то|чей-то|кое-кто|кое-что|кое-где|кое-когда|кое-как|кое-какой|из-за|из-под)\b/gi, protect);
+    text = text.replace(/\b[А-Яа-я]+-[А-Яа-я]+\b/g, protect); // слова через дефис
+    // Числовые диапазоны: заменяем дефис/короткое тире на en-dash
+    text = text.replace(/(\d+)\s*[-–]\s*(\d+)/g, `$1${this.EN_DASH}$2`);
+    // Диапазоны римскими цифрами (например, IV–VI)
+    text = text.replace(/\b([IVXLCDM]+)\s*[-–]\s*([IVXLCDM]+)\b/gi, `$1${this.EN_DASH}$2`);
+
+    // Нормализация пробелов и спецсимволов
+    text = text.replace(/\s+/g, ' '); // Схлопываем множественные пробелы
+    text = text.replace(/(\.\.\.|\s\.\s\.)/g, ELLIPSIS); // Многоточие
+    text = text.replace(/ - /g, ` ${EM_DASH} `); // Одиночное тире
+    text = text.replace(/--/g, EM_DASH); // Двойной дефис
+    // Замена короткого тире/дефиса между словами на длинное тире
+    text = text.replace(/(?:\s|\u00A0)(?:-|–)(?:\s|\u00A0)/g, `${NBSP}${EM_DASH} `);
+
+    // Замена дефиса/тире на длинное тире в начале строки (прямая речь)
+        // Обрабатываем любой вид дефиса/тире в начале строки
+        // Замена дефиса/тире (одного символа) в начале строки
+        // Диалог: только если первый символ именно дефис или короткий en-dash
+    text = text.replace(/^(\s*)(?:-|–)\s+/gm, `$1${EM_DASH} `);
+
+    // Кавычки-елочки
+    text = text.replace(/(^|\s|[(])\"/g, `$1«`);
+    text = text.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
+    
+    // Внутренние кавычки-лапки (если елочки уже открыты)
+    text = text.replace(/«([^»]*)“/g, '«$1„');
+    text = text.replace(/”([^«]*)»/g, '“$1»');
+
+    // Неразрывные пробелы
+    // Предлоги и союзы (1-2 буквы) с использованием lookahead
+        text = text.replace(/(\s)([a-яА-Я]{1,2})\s+/g, `$1$2${NBSP}`);
+    // Частицы не, же, бы, ли с использованием lookahead
+        text = text.replace(/(\s)(не|ни|же|бы|ли|ль)\s+/gi, `$1$2${NBSP}`);
+    // Инициалы (А.С. Пушкин)
+    text = text.replace(/([А-Я]\.)\s([А-Я]\.)\s([А-Я][а-я]+)/g, `$1${NBSP}$2${NBSP}$3`);
+    // Сокращения (и т. д., и т. п.)
+    text = text.replace(/(\s)(и|а)\s(т\.|тд|тп)\./g, `$1$2${NBSP}$3.`);
+    // г. Москва
+    text = text.replace(/(\s)(г|д|пос|ул|пр|пл|пер|д-р)\.\s([А-Я])/g, `$1$2.${NBSP}$3`);
+    // Числа с единицами измерения
+    text = text.replace(/(\d)\s(кг|г|м|см|мм|л|мл|руб|коп|тыс|млн|млрд)\b/g, `$1${NBSP}$2`);
+    // NBSP между числом и словом (например 1917 года)
+    text = text.replace(/(\d+)\s([А-Яа-яA-Za-zЁё]+)/g, `$1${NBSP}$2`);
+    // Тире
+    text = text.replace(/(\S)\s—\s(\S)/g, `$1${NBSP}— $2`);
+    // Номера
+    text = text.replace(/(\s)(№|§)\s?(\d)/g, `$1$2${NBSP}$3`);
+
+    // Расстановка тонких пробелов
+    text = text.replace(/([.,:;!?])([»”’])/g, `$1${THIN_SPACE}$2`);
+    text = text.replace(/([«“‘])(\S)/g, `$1${THIN_SPACE}$2`);
+    text = text.replace(/(\S)([»”’])/g, `$1${THIN_SPACE}$2`);
+
+    // Восстановление защищенных слов
+    text = text.replace(/__PROTECTED_(\d+)__/g, (match, index) => protectedWords[parseInt(index, 10)]);
+    // Удаляем случайные дубликаты неразрывных пробелов
+    text = text.replace(/\u00A0{2,}/g, NBSP);
+    // Убираем пробелы после NBSP, если они случайно остались
+    text = text.replace(/\u00A0\s+/g, NBSP);
+    // Убираем пробелы после открывающей и перед закрывающей кавычки
+    text = text.replace(/«\s+/g, '«');
+    text = text.replace(/\s+»/g, '»');
+
+    // Удаление пробелов в начале и конце строки
+    return text.trim();
+  }
+
+  static getTestText(): string {
+    return (
+      'Это тестовый текст для демонстрации работы типографа. ' +
+      'Он содержит "кавычки", дефисы в словах типа кто-то, ' +
+      'а также длинные тире — например, здесь. ' +
+      'Диапазоны чисел, как 1-10, и двойные дефисы -- тоже обрабатываются. ' +
+      'И, конечно, сокращения, такие как и т. д. или г. Москва, ' +
+      'инициалы А. С. Пушкин и многое другое.'
+    );
   }
 
   /**
-   * Получить пример текста (обновленный)
+   * Алиас для загрузки примера текста (совместимость)
    */
   static getExampleText(): string {
-    return `Пример текста с   типографскими ошибками
+    return this.getTestText();
+  }
 
-Проблемы  с   пробелами    и знаками   ,точками   .
-Дефисы  --  вместо тире и многоточие...
-Плохие пробелы в скобках( вот так ).
+  // Статический метод для обработки HTML
+  static processHtml(html: string): string {
+    const $ = cheerio.load(html, {
+      xml: { decodeEntities: false },
+      xmlMode: true,
+    });
 
-Неразрывные пробелы:
-В магазин за хлебом.
-К врачу на осмотр.
-На работу в офис.
-Вес: 10 кг, рост: 180 см.
-А. С. Пушкин написал много произведений.
-
-Диалоги:
-- Привет! Как дела?
-- Хорошо, спасибо за вопрос.
-
-Проценты: скидка 15% на все товары.
-
-ПРИМЕР СТИХОТВОРЕНИЯ:
-
-        Белеет парус одинокой
-        В тумане моря голубом...
-        Что ищет он в стране далекой?
-        Что кинул он в краю родном?
-
-    Играют волны -- ветер свищет,
-    И мачта гнется и скрыпит...
-        Увы! он счастия не ищет
-        И не от счастия бежит!
-
-Под ним струя светлей лазури,
-Над ним луч солнца золотой...
-    А он, мятежный, просит бури,
-    Как будто в бурях есть покой!
-
-Этот текст содержит различные типографские ошибки и демонстрирует работу с поэзией.`;
+    $('body').find('*').each((_, element) => {
+      const el = $(element);
+      // Обрабатываем только текстовые узлы, игнорируя теги
+      el.contents().each((__, node) => {
+        if (node.type === 'text') {
+          const textNode = $(node);
+          const originalText = textNode.text();
+          const processedText = this.processRegularText(originalText);
+          textNode.replaceWith(processedText);
+        }
+      });
+    });
+    
+    return $('body').html() || '';
   }
 }
 
 // Экспорт для обратной совместимости
 export const TypographyProcessor = AdvancedTypographyProcessor;
 
-export function typographText(text: string): string {
-  return AdvancedTypographyProcessor.process(text);
+// Функции-обертки для простого использования
+export function typographText(text: string, options: { isFirst?: boolean } = {}): string {
+  if (options.isFirst) {
+    // Более простая обработка для первого параграфа, если нужно
+    return AdvancedTypographyProcessor.processRegularText(text);
+  }
+  return AdvancedTypographyProcessor.processRegularText(text);
 }
 
-function typographHtml(html: string): string {
-  const $ = cheerio.load(html);
-  $('body, body *').contents().each(function (this: any) {
-    // Если это текст внутри пустого <p> — не трогаем
-    if (this.type === 'text') {
-      const parent = this.parent as any;
-      if (
-        parent &&
-        parent.tagName === 'p' &&
-        (!this.data || this.data.replace(/\s|\u00A0|&nbsp;/g, '') === '')
-      ) {
-        return;
-      }
-      this.data = typographText(this.data || '');
-    }
-  });
-  return $.html();
+export function typographHtml(html: string): string {
+  if (!html) return '';
+  return AdvancedTypographyProcessor.processHtml(html);
 }
