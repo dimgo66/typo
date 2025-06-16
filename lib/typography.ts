@@ -97,7 +97,12 @@ export class AdvancedTypographyProcessor {
     // Двойной дефис → длинное тире
     processedText = processedText.replace(/--/g, this.EM_DASH);
     // Одиночный дефис или короткое тире в конце строки → длинное тире
-    processedText = processedText.replace(/[-–]\s*$/gm, this.EM_DASH);
+    // Дефис/короткое тире перед концом строки → длинное тире, сохраняем перевод строки
+    // Дефис/короткое тире перед переводом строки → длинное тире
+    processedText = processedText.replace(/[-–](?=\s*$)/gm, this.EM_DASH);
+    // Дефис/короткое тире перед переводом строки → длинное тире (с сохранением перевода)
+    // Любой дефис/короткое тире (включая неразрывный) перед переводом строки
+    processedText = processedText.replace(/(?:\s|^)[-–-]\s*(\r?\n)/g, `${this.EM_DASH}$1`);
     processedText = processedText.replace(/(^|\s|[(])\"/g, `$1«`); // Кавычки-елочки
     processedText = processedText.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
     return processedText;
