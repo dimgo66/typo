@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TypographyProcessor } from "@/lib/typography";
+import VisitsCounter from "@/components/VisitsCounter";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -392,6 +393,7 @@ export default function Home() {
       <footer className="w-full border-t mt-12 py-6 bg-white/80 text-center text-gray-600 text-sm flex flex-col items-center gap-2">
         <div>© {new Date().getFullYear()} Дмитрий Горяченков</div>
         <div className="flex items-center gap-2">
+          <VisitsCounter />
           <a
             href="https://github.com/dimgo66/typography"
             target="_blank"
