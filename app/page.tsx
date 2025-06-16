@@ -96,7 +96,7 @@ export default function Home() {
       // Increment processed docs counter
       try {
         const ns = window.location.hostname.replace(/\./g, "_");
-        fetch(`https://api.countapi.xyz/hit/${ns}/docs`).catch(() => {});
+        fetch(`https://countapi.xyz/hit/${ns}/docs`).catch(() => {});
       } catch (_) {}
 
     } catch (error) {

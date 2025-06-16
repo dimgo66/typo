@@ -7,7 +7,7 @@ export default function DocsCounter() {
 
   useEffect(() => {
     const ns = window.location.hostname.replace(/\./g, "_");
-    fetch(`https://api.countapi.xyz/get/${ns}/docs`)
+    fetch(`https://countapi.xyz/get/${ns}/docs`)
       .then((r) => r.json())
       .then((d) => setCount(d.value ?? 0))
       .catch(() => setCount(null));
