@@ -94,7 +94,10 @@ export class AdvancedTypographyProcessor {
     let processedText = text;
     // В стихах применяем только самые необходимые правила,
     // чтобы не нарушить авторский ритм и разбивку строк.
-    processedText = processedText.replace(/--/g, this.EM_DASH); // Двойной дефис в тире
+    // Двойной дефис → длинное тире
+    processedText = processedText.replace(/--/g, this.EM_DASH);
+    // Одиночный дефис или короткое тире в конце строки → длинное тире
+    processedText = processedText.replace(/[-–]\s*$/gm, this.EM_DASH);
     processedText = processedText.replace(/(^|\s|[(])\"/g, `$1«`); // Кавычки-елочки
     processedText = processedText.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
     return processedText;
