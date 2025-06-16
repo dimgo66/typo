@@ -418,6 +418,14 @@ export default function Home() {
           >
             ★ {stars === null ? "Загрузка..." : stars}
           </a>
+          <a
+            href="https://yoomoney.ru/bill/pay/1ATUHLJVTLJ.250616"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 hover:underline text-blue-700"
+          >
+            ☕ «От благодарных пользователей на кофий и сигареты»
+          </a>
         </div>
       </footer>
     </div>
