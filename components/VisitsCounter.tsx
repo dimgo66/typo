@@ -6,7 +6,8 @@ export default function VisitsCounter() {
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("https://api.countapi.xyz/hit/typography.vercel.app/visits")
+    const ns = window.location.hostname.replace(/\./g, "_");
+    fetch(`https://api.countapi.xyz/hit/${ns}/visits`)
       .then((r) => r.json())
       .then((d) => setCount(d.value))
       .catch(() => setCount(null));
