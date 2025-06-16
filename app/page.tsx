@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TypographyProcessor } from "@/lib/typography";
-import VisitsCounter from "@/components/VisitsCounter";
+import DocsCounter from "@/components/DocsCounter";
 
 export default function Home() {
   const [text, setText] = useState("");
@@ -92,6 +92,13 @@ export default function Home() {
       }, 100);
 
       setMessage("Файл успешно обработан и скачан");
+
+      // Increment processed docs counter
+      try {
+        const ns = window.location.hostname.replace(/\./g, "_");
+        fetch(`https://api.countapi.xyz/hit/${ns}/docs`).catch(() => {});
+      } catch (_) {}
+
     } catch (error) {
       console.error("Ошибка:", error);
       setMessage("Произошла ошибка при обработке файла");
@@ -393,7 +400,7 @@ export default function Home() {
       <footer className="w-full border-t mt-12 py-6 bg-white/80 text-center text-gray-600 text-sm flex flex-col items-center gap-2">
         <div>© {new Date().getFullYear()} Дмитрий Горяченков</div>
         <div className="flex items-center gap-2">
-          <VisitsCounter />
+          <DocsCounter />
           <a
             href="https://github.com/dimgo66/typography"
             target="_blank"
