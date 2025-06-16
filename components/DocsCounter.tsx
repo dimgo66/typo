@@ -7,10 +7,16 @@ export default function DocsCounter() {
 
   useEffect(() => {
     const ns = window.location.hostname.replace(/\./g, "_");
-    fetch(`https://countapi.xyz/get/${ns}/docs`)
-      .then((r) => r.json())
-      .then((d) => setCount(d.value ?? 0))
-      .catch(() => setCount(null));
+    fetch(`https://countapi.xyz/get/${ns}/docs`).then(async (r) => {
+      if (r.status === 404) {
+        // Key отсутствует — создаём со значением 0
+        await fetch(`https://countapi.xyz/set/${ns}/docs/0`);
+        setCount(0);
+        return;
+      }
+      const d = await r.json();
+      setCount(d.value ?? 0);
+    }).catch(() => setCount(null));
   }, []);
 
   return (
