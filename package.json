@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:typograph": "ts-node --compiler-options '{\"module\":\"commonjs\"}' -e \"const { typographText } = require('./lib/typography'); console.log(typographText('А.С. Пушкин\\nЭто пример.'));\""
   },
   "dependencies": {
     "cheerio": "^1.1.0",
@@ -22,6 +23,7 @@
     "rtf-parser": "^1.3.3"
   },
   "devDependencies": {
+    "ts-node": "^10.9.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

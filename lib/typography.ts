@@ -132,8 +132,11 @@ export class AdvancedTypographyProcessor {
     // Диапазоны римскими цифрами (например, IV–VI)
     text = text.replace(/\b([IVXLCDM]+)\s*[-–]\s*([IVXLCDM]+)\b/gi, `$1${this.EN_DASH}$2`);
 
-    // Нормализация пробелов и спецсимволов
-    text = text.replace(/\s+/g, ' '); // Схлопываем множественные пробелы
+    // Сначала заменяем переводы строк на символ абзаца (U+2029)
+    text = text.replace(/\r?\n/g, '\u2029');
+
+    // Нормализация пробелов и спецсимволов (не затрагиваем абзац U+2029)
+    text = text.replace(/[ \t\f\v\u00A0]+/g, ' '); // Схлопываем множественные пробелы, но не \u2029
     text = text.replace(/(\.\.\.|\s\.\s\.)/g, ELLIPSIS); // Многоточие
     text = text.replace(/ - /g, ` ${EM_DASH} `); // Одиночное тире
     text = text.replace(/--/g, EM_DASH); // Двойной дефис
@@ -159,7 +162,9 @@ export class AdvancedTypographyProcessor {
         text = text.replace(/(\s)([a-яА-Я]{1,2})\s+/g, `$1$2${NBSP}`);
     // Частицы не, же, бы, ли с использованием lookahead
         text = text.replace(/(\s)(не|ни|же|бы|ли|ль)\s+/gi, `$1$2${NBSP}`);
-    // Инициалы (А.С. Пушкин)
+    // Инициалы без пробелов (А.С. Пушкин)
+    text = text.replace(/([А-Я])\.([А-Я])\.\s([А-Я][а-я]+)/g, `$1.${NBSP}$2.${NBSP}$3`);
+    // Инициалы с пробелами (А. С. Пушкин)
     text = text.replace(/([А-Я]\.)\s([А-Я]\.)\s([А-Я][а-я]+)/g, `$1${NBSP}$2${NBSP}$3`);
     // Сокращения (и т. д., и т. п.)
     text = text.replace(/(\s)(и|а)\s(т\.|тд|тп)\./g, `$1$2${NBSP}$3.`);
@@ -188,6 +193,9 @@ export class AdvancedTypographyProcessor {
     // Убираем пробелы после открывающей и перед закрывающей кавычки
     text = text.replace(/«\s+/g, '«');
     text = text.replace(/\s+»/g, '»');
+
+    // Замена перевода строки на символ абзаца
+    text = text.replace(/\r?\n/g, '\u2029');
 
     // Удаление пробелов в начале и конце строки
     return text.trim();
