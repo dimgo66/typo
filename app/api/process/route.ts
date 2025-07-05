@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PizZip from 'pizzip';
-import { load as loadXml } from 'cheerio';
-import { typographText } from '@/lib/typography';
+import * as cheerio from 'cheerio';
+import { TypographyCore } from '@/lib/core/TypographyCore';
 
 function transliterate(str: string): string {
   const map: Record<string, string> = {
@@ -13,7 +13,7 @@ function transliterate(str: string): string {
 }
 
 function processDocxXml(xml: string): string {
-  const $ = loadXml(xml, { xmlMode: true });
+  const $ = cheerio.load(xml, { xmlMode: true });
 
   $('w\\:p').each((_, p) => {
     const paragraph = $(p);
@@ -31,7 +31,7 @@ function processDocxXml(xml: string): string {
 
 
       // 2. Обработать собранный текст
-      const processedText = typographText(fullText);
+      const processedText = TypographyCore.typographText(fullText);
 
       // 3. Заменить содержимое параграфа
       // Помещаем весь обработанный текст в первый узел <w:t>

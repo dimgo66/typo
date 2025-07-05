@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест типографического процессора</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .test-container {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .test-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 5px;
+        }
+        
+        .original, .processed {
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .original {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .processed {
+            background-color: #f1f8ff;
+            border-left: 4px solid #28a745;
+        }
+        
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .original .label {
+            color: #dc3545;
+        }
+        
+        .processed .label {
+            color: #28a745;
+        }
+        
+        .test-input {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        
+        .test-button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .test-button:hover {
+            background-color: #005a94;
+        }
+        
+        .error {
+            background-color: #ffe6e6;
+            border: 1px solid #ff9999;
+            color: #cc0000;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .analysis {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .analysis h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        
+        .code-block {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Тестирование типографического процессора</h1>
+    <p>Анализ проблемы с изменением стиля всего абзаца при форматировании первого слова</p>
+
+    <div class="test-container">
+        <div class="test-title">Интерактивный тест</div>
+        <textarea class="test-input" id="customInput" placeholder="Введите HTML для тестирования..."></textarea>
+        <button class="test-button" onclick="testCustomInput()">Протестировать</button>
+        <div id="customResult"></div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">Тест 1: Полужирное первое слово</div>
+        <div class="original">
+            <div class="label">Исходный HTML:</div>
+            <div id="test1-original"></div>
+        </div>
+        <div class="processed">
+            <div class="label">После обработки:</div>
+            <div id="test1-processed"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">Тест 2: Курсивное первое слово</div>
+        <div class="original">
+            <div class="label">Исходный HTML:</div>
+            <div id="test2-original"></div>
+        </div>
+        <div class="processed">
+            <div class="label">После обработки:</div>
+            <div id="test2-processed"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">Тест 3: Форматирование в середине текста</div>
+        <div class="original">
+            <div class="label">Исходный HTML:</div>
+            <div id="test3-original"></div>
+        </div>
+        <div class="processed">
+            <div class="label">После обработки:</div>
+            <div id="test3-processed"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-title">Тест 4: Сложное форматирование</div>
+        <div class="original">
+            <div class="label">Исходный HTML:</div>
+            <div id="test4-original"></div>
+        </div>
+        <div class="processed">
+            <div class="label">После обработки:</div>
+            <div id="test4-processed"></div>
+        </div>
+    </div>
+
+    <div class="analysis">
+        <h3>Анализ проблемы</h3>
+        <div id="analysis-content"></div>
+    </div>
+
+    <script>
+        // Встраиваем код типографического процессора
+        class AdvancedTypographyProcessor {
+            static NON_BREAKING_SPACE = '\u00A0';
+            static THIN_SPACE = '\u2009';
+            static EM_DASH = '—';
+            static ELLIPSIS = '…';
+            static EN_DASH = '–';
+
+            static isPoetry(text) {
+                const lines = text.split('\n').filter(line => line.trim().length > 0);
+                if (lines.length < 2) return false;
+
+                let poetryScore = 0;
+                const avgLineLength = lines.reduce((sum, line) => sum + line.trim().length, 0) / lines.length;
+                if (avgLineLength < 60) poetryScore += 2;
+
+                const lineBreaks = (text.match(/\n/g) || []).length;
+                const wordCount = text.split(/\s+/).length;
+                if (wordCount > 0 && lineBreaks / wordCount > 0.1) poetryScore += 2;
+
+                const indentedLines = lines.filter(line => line.match(/^\s{2,}/) || line.startsWith('\t')).length;
+                if (indentedLines / lines.length > 0.3) poetryScore += 3;
+
+                const capitalizedLines = lines.filter(line => /^[А-ЯЁA-Z]/.test(line.trim())).length;
+                if (capitalizedLines / lines.length > 0.7) poetryScore += 1;
+
+                const lineLengths = lines.map(line => line.trim().length);
+                const lengthVariance = lineLengths.reduce((sum, len) => sum + Math.pow(len - avgLineLength, 2), 0) / lineLengths.length;
+                if (lengthVariance < 100) poetryScore += 1;
+
+                return poetryScore >= 5;
+            }
+
+            static processText(text) {
+                if (this.isPoetry(text)) {
+                    return this.processPoetryText(text);
+                }
+                return this.processRegularText(text);
+            }
+
+            static processRegularText(text) {
+                return this.applyBasicRules(text);
+            }
+
+            static processPoetryText(text) {
+                let processedText = text;
+                processedText = processedText.replace(/--/g, this.EM_DASH);
+                processedText = processedText.replace(/[-–](?=\s*$)/gm, this.EM_DASH);
+                processedText = processedText.replace(/(?:\s|^)[-–-]\s*(\r?\n)/g, `${this.EM_DASH}$1`);
+                processedText = processedText.replace(/(^|\s|[(])\"/g, `$1«`);
+                processedText = processedText.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
+                return processedText;
+            }
+
+            static applyBasicRules(text) {
+                if (!text || typeof text !== 'string') return text;
+
+                const NBSP = this.NON_BREAKING_SPACE;
+                const THIN_SPACE = this.THIN_SPACE;
+                const EM_DASH = this.EM_DASH;
+                const ELLIPSIS = this.ELLIPSIS;
+
+                const protectedWords = [];
+                const protect = (match) => {
+                    protectedWords.push(match);
+                    return `__PROTECTED_${protectedWords.length - 1}__`;
+                };
+                text = text.replace(/\b(кто-то|что-то|где-то|когда-то|как-то|какой-то|чей-то|кое-кто|кое-что|кое-где|кое-когда|кое-как|кое-какой|из-за|из-под)\b/gi, protect);
+                text = text.replace(/\b[А-Яа-я]+-[А-Яа-я]+\b/g, protect);
+                text = text.replace(/(\d+)\s*[-–]\s*(\d+)/g, `$1${this.EN_DASH}$2`);
+                text = text.replace(/\b([IVXLCDM]+)\s*[-–]\s*([IVXLCDM]+)\b/gi, `$1${this.EN_DASH}$2`);
+
+                text = text.replace(/[ \t\f\v\u00A0]+/g, ' ');
+                text = text.replace(/(\.\.\.|\s\.\s\.)/g, ELLIPSIS);
+                text = text.replace(/ - /g, ` ${EM_DASH} `);
+                text = text.replace(/--/g, EM_DASH);
+                text = text.replace(/(?:\s|\u00A0)(?:-|–)(?:\s|\u00A0)/g, `${NBSP}${EM_DASH} `);
+
+                text = text.replace(/^(\s*)(?:-|–)\s+/gm, `$1${EM_DASH} `);
+
+                text = text.replace(/(^|\s|[(])\"/g, `$1«`);
+                text = text.replace(/\"($|\s|[.,:;!?)\\])/g, `»$1`);
+                
+                text = text.replace(/«([^»]*)"/g, '«$1„');
+                text = text.replace(/"([^«]*)»/g, '"$1»');
+
+                text = text.replace(/(\s)([a-яА-Я]{1,2})\s+/g, `$1$2${NBSP}`);
+                text = text.replace(/(\s)(не|ни|же|бы|ли|ль)\s+/gi, `$1$2${NBSP}`);
+                text = text.replace(/([А-Я])\.([А-Я])\.\s([А-Я][а-я]+)/g, `$1.${NBSP}$2.${NBSP}$3`);
+                text = text.replace(/([А-Я]\.)\s([А-Я]\.)\s([А-Я][а-я]+)/g, `$1${NBSP}$2${NBSP}$3`);
+                text = text.replace(/(\s)(и|а)\s(т\.|тд|тп)\./g, `$1$2${NBSP}$3.`);
+                text = text.replace(/(\s)(г|д|пос|ул|пр|пл|пер|д-р)\.\s([А-Я])/g, `$1$2.${NBSP}$3`);
+                text = text.replace(/(\d)\s(кг|г|м|см|мм|л|мл|руб|коп|тыс|млн|млрд)\b/g, `$1${NBSP}$2`);
+                text = text.replace(/(\d+)\s([А-Яа-яA-Za-zЁё]+)/g, `$1${NBSP}$2`);
+                text = text.replace(/(\S)\s—\s(\S)/g, `$1${NBSP}— $2`);
+                text = text.replace(/(\s)(№|§)\s?(\d)/g, `$1$2${NBSP}$3`);
+
+                text = text.replace(/([.,:;!?])([»"'])/g, `$1${THIN_SPACE}$2`);
+                text = text.replace(/([«"'])(\S)/g, `$1${THIN_SPACE}$2`);
+                text = text.replace(/(\S)([»"'])/g, `$1${THIN_SPACE}$2`);
+
+                text = text.replace(/__PROTECTED_(\d+)__/g, (match, index) => protectedWords[parseInt(index, 10)]);
+                text = text.replace(/\u00A0{2,}/g, NBSP);
+                text = text.replace(/\u00A0\s+/g, NBSP);
+                text = text.replace(/«\s+/g, '«');
+                text = text.replace(/\s+»/g, '»');
+
+                return text.trim();
+            }
+
+            // Упрощенная версия processHtml без cheerio
+            static processHtml(html) {
+                if (!html || !html.trim()) return html;
+
+                // Простая обработка HTML для демонстрации проблемы
+                let result = html;
+                
+                // Ищем текстовые узлы и обрабатываем их
+                result = result.replace(/>([^<]+)</g, (match, textContent) => {
+                    const processed = this.processRegularText(textContent);
+                    return `>${processed}<`;
+                });
+
+                return result;
+            }
+
+            static processFormattedParagraph(html) {
+                return this.processHtml(html);
+            }
+
+            static processSafely(input) {
+                if (!input || typeof input !== 'string') return input;
+                
+                const htmlTagRegex = /<\/?[^>]+(>|$)/;
+                
+                if (htmlTagRegex.test(input)) {
+                    return this.processFormattedParagraph(input);
+                } else {
+                    return this.processRegularText(input);
+                }
+            }
+        }
+
+        // Тестовые данные
+        const testCases = [
+            {
+                id: 'test1',
+                name: 'Полужирное первое слово',
+                html: '<p><strong>Внимание!</strong> Это важное сообщение о том, что нужно обратить внимание на детали.</p>'
+            },
+            {
+                id: 'test2',
+                name: 'Курсивное первое слово',
+                html: '<p><em>Однажды</em> в студеную зимнюю пору я из лесу вышел; был сильный мороз.</p>'
+            },
+            {
+                id: 'test3',
+                name: 'Форматирование в середине',
+                html: '<p>Это обычный текст с <strong>выделенным</strong> словом в середине предложения.</p>'
+            },
+            {
+                id: 'test4',
+                name: 'Сложное форматирование',
+                html: '<p><strong>Заголовок:</strong> <em>курсивный текст</em> и <u>подчеркнутый</u> текст в одном абзаце.</p>'
+            }
+        ];
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function runTest(testCase) {
+            const originalElement = document.getElementById(testCase.id + '-original');
+            const processedElement = document.getElementById(testCase.id + '-processed');
+
+            // Показываем исходный HTML
+            originalElement.innerHTML = `<div class="code-block">${escapeHtml(testCase.html)}</div>`;
+
+            try {
+                // Обрабатываем HTML
+                const processed = AdvancedTypographyProcessor.processSafely(testCase.html);
+                
+                // Показываем результат
+                processedElement.innerHTML = `
+                    <div class="code-block">${escapeHtml(processed)}</div>
+                    <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background: white;">
+                        <strong>Рендер:</strong><br>
+                        ${processed}
+                    </div>
+                `;
+            } catch (error) {
+                processedElement.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+
+        function testCustomInput() {
+            const input = document.getElementById('customInput').value;
+            const resultElement = document.getElementById('customResult');
+
+            if (!input.trim()) {
+                resultElement.innerHTML = '<div class="error">Введите HTML для тестирования</div>';
+                return;
+            }
+
+            try {
+                const processed = AdvancedTypographyProcessor.processSafely(input);
+                
+                resultElement.innerHTML = `
+                    <div class="original">
+                        <div class="label">Исходный HTML:</div>
+                        <div class="code-block">${escapeHtml(input)}</div>
+                    </div>
+                    <div class="processed">
+                        <div class="label">После обработки:</div>
+                        <div class="code-block">${escapeHtml(processed)}</div>
+                        <div style="margin-top: 10px; padding: 10px; border: 1px solid #ccc; background: white;">
+                            <strong>Рендер:</strong><br>
+                            ${processed}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultElement.innerHTML = `<div class="error">Ошибка: ${error.message}</div>`;
+            }
+        }
+
+        function analyzeIssue() {
+            const analysisElement = document.getElementById('analysis-content');
+            
+            analysisElement.innerHTML = `
+                <h4>Проблема обнаружена в методе processHtml()</h4>
+                <p><strong>Причина:</strong> Упрощенная обработка HTML с помощью регулярных выражений не учитывает структуру документа и может неправильно обрабатывать вложенные теги.</p>
+                
+                <h4>Детали проблемы:</h4>
+                <ul>
+                    <li>Регулярное выражение <code>>([^&lt;]+)&lt;</code> захватывает весь текстовый контент между тегами</li>
+                    <li>При наличии вложенных тегов форматирования обработка может происходить некорректно</li>
+                    <li>Типографские правила применяются ко всему тексту без учета HTML-структуры</li>
+                </ul>
+
+                <h4>Рекомендации по исправлению:</h4>
+                <ol>
+                    <li>Использовать полноценный HTML-парсер (например, cheerio в Node.js)</li>
+                    <li>Обрабатывать только текстовые узлы, не затрагивая структуру HTML</li>
+                    <li>Сохранять форматирование при применении типографских правил</li>
+                    <li>Добавить тесты для различных случаев HTML-форматирования</li>
+                </ol>
+
+                <h4>Альтернативное решение:</h4>
+                <p>Создать более точный парсер, который:</p>
+                <ul>
+                    <li>Различает текстовые узлы и HTML-теги</li>
+                    <li>Применяет типографские правила только к чистому тексту</li>
+                    <li>Сохраняет все атрибуты и структуру HTML</li>
+                </ul>
+            `;
+        }
+
+        // Запускаем тесты при загрузке страницы
+        window.onload = function() {
+            testCases.forEach(runTest);
+            analyzeIssue();
+            
+            // Заполняем поле для ввода примером
+            document.getElementById('customInput').value = '<p><strong>Важно:</strong> обратите внимание на то, что происходит с форматированием.</p>';
+        };
+    </script>
+</body>
+</html>

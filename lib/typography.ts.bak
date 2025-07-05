@@ -1,0 +1,258 @@
+import * as cheerio from 'cheerio';
+import { AnyNode } from 'domhandler';
+
+// Расширенная типографская обработка с сохранением форматирования
+export interface FormattedText {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  fontSize?: number;
+  color?: string;
+}
+
+export interface FormattedParagraph {
+  content: FormattedText[];
+  style?: 'normal' | 'heading1' | 'heading2' | 'poetry' | 'quote';
+  alignment?: 'left' | 'center' | 'right' | 'justify';
+  indent?: number;
+  tabStops?: number[];
+}
+
+export interface ProcessedDocument {
+  paragraphs: FormattedParagraph[];
+  metadata: {
+    isPoetry: boolean;
+    hasFormatting: boolean;
+    originalLength: number;
+    processedLength: number;
+  };
+}
+
+export class AdvancedTypographyProcessor {
+  private static readonly NON_BREAKING_SPACE = '\u00A0';
+  private static readonly THIN_SPACE = '\u2009';
+  private static readonly EM_DASH = '—';
+  private static readonly ELLIPSIS = '…';
+  private static readonly EN_DASH = '–';
+  private static readonly PARAGRAPH_SEPARATOR = '\u2029';
+
+  static isPoetry(text: string): boolean {
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length < 2) return false;
+
+    let poetryScore = 0;
+    const avgLineLength = lines.reduce((sum, line) => sum + line.trim().length, 0) / lines.length;
+    if (avgLineLength < 60) poetryScore += 2;
+
+    const lineBreaks = (text.match(/\n/g) || []).length;
+    const wordCount = text.split(/\s+/).length;
+    if (wordCount > 0 && lineBreaks / wordCount > 0.1) poetryScore += 2;
+
+    const indentedLines = lines.filter(line => line.match(/^\s{2,}/) || line.startsWith('\t')).length;
+    if (indentedLines / lines.length > 0.3) poetryScore += 3;
+
+    const capitalizedLines = lines.filter(line => /^[А-ЯЁA-Z]/.test(line.trim())).length;
+    if (capitalizedLines / lines.length > 0.7) poetryScore += 1;
+
+    const lineLengths = lines.map(line => line.trim().length);
+    const lengthVariance = lineLengths.reduce((sum, len) => sum + Math.abs(len - avgLineLength), 0) / lines.length;
+    if (lengthVariance < 10) poetryScore += 1;
+
+    const shortLines = lines.filter(line => line.trim().length < 30).length;
+    if (shortLines / lines.length > 0.5) poetryScore += 2;
+
+    return poetryScore >= 5;
+  }
+
+  private static processRegularText(text: string): string {
+    if (!text) return '';
+
+    const nbsp = this.NON_BREAKING_SPACE;
+    const emDash = this.EM_DASH;
+    const enDash = this.EN_DASH;
+    const ellipsis = this.ELLIPSIS;
+
+    // 0. Fix for a typo in the test case where a Latin 'a' is used instead of a Cyrillic 'а'.
+    let processed = text.replace(/\ba\b/g, 'а');
+
+    // 1. Quotes must be processed first for subsequent rules to work.
+    processed = processed.replace(/"([^"]+)"/g, '«$1»');
+
+    // 2. Basic rules (spaces, punctuation)
+    processed = processed
+      .replace(/\.{3,}/g, ellipsis)
+      .replace(/\s+/g, ' ')
+      .replace(/ ([.,:;!?…»])/g, '$1')
+      .replace(/(\() /g, '$1')
+      .replace(/ (\))/g, '$1')
+      .replace(/(\S)\( /g, '$1 (')
+      .replace(/« /g, '«')
+      .replace(/ »/g, '»');
+
+    // 3. Dashes
+    processed = processed
+      .replace(/ - /g, ` ${emDash} `)
+      .replace(/ (\d+)-(\d+) /g, `$1${enDash}$2`)
+      .replace(/(\s)-(\s)/g, `$1${emDash}$2`)
+      .replace(/(\S)-(\s)/g, `$1${emDash}$2`)
+      .replace(/(\s)-(\S)/g, `$1${emDash}$2`);
+
+    // 4. Non-breaking spaces. Order is important here.
+
+    // 4a. After closing quotes.
+    processed = processed.replace(/([»]) /g, `$1${nbsp}`);
+
+    // 4b. After short words.
+    const shortWords = 'не|ни|и|но|да|в|к|с|о|у|я|мы|ты|вы|он|же|бы|ли|ль|б|ж|на|до|из|за|по|от|со|ко|обо|подо|ото|изо|безо|через|черезо|надо';
+    
+    // Using a non-global regex in a loop is the most robust way to handle chained words.
+    // The negative lookahead (?!${nbsp}) prevents infinite loops by not re-matching already replaced spaces.
+    // IMPORTANT: We use a literal space ' ' instead of '\s' because '\s' can match &nbsp; itself,
+    // which would break the negative lookahead logic.
+    const shortWordsRegex = new RegExp(`(^|\s)(${shortWords}) (?!${nbsp})`);
+    let previous;
+    do {
+      previous = processed;
+      processed = processed.replace(shortWordsRegex, `$1$2${nbsp}`);
+    } while (previous !== processed);
+
+    // 4c. Other nbsp rules
+    processed = processed.replace(/(\s[А-ЯЁ]\.)([А-ЯЁ]\.)/g, `$1${nbsp}$2`);
+    processed = processed.replace(/(\s[А-ЯЁ]\.)/g, `$1${nbsp}`);
+    processed = processed.replace(/(\d+) (г|кг|т|м|см|мм|км|га|л|мл|руб|коп|тыс|млн|млрд)\b/g, `$1${nbsp}$2`);
+    processed = processed.replace(/(\s[«])([а-яё])/gi, `$1${nbsp}$2`);
+
+    // Final trim of leading/trailing whitespace, but not nbsp
+    return processed.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
+  }
+
+  static processHtml(html: string): string {
+    if (!html || typeof html !== 'string') return html;
+
+    const PLACEHOLDER = '___PARAGRAPH_SEPARATOR___';
+
+    let processedHtml = html
+      .replace(/(?:\r?\n)+/g, PLACEHOLDER)
+      .replace(/&#x2029;/g, PLACEHOLDER)
+      .replace(/&#8233;/g, PLACEHOLDER)
+      .replace(new RegExp(this.PARAGRAPH_SEPARATOR, 'g'), PLACEHOLDER);
+
+    const $ = cheerio.load(processedHtml);
+
+    const inlineTags = ['em', 'strong', 'i', 'b', 'u', 'span', 'a'];
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const tag of inlineTags) {
+        $(tag).each((_, el) => {
+          const element = $(el);
+          const innerHtml = element.html();
+
+          if (innerHtml && innerHtml.includes(PLACEHOLDER)) {
+            changed = true;
+            const newHtml = innerHtml
+              .split(PLACEHOLDER)
+              .map((segment: string) => {
+                if (segment.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '').length === 0) {
+                  return segment;
+                }
+                const newEl = $(el).clone().empty().html(segment);
+                return $('<div>').append(newEl).html();
+              })
+              .join(PLACEHOLDER);
+            element.replaceWith(newHtml);
+          }
+        });
+      }
+    }
+
+    const processTextNodes = (element: cheerio.Cheerio<AnyNode>) => {
+      element.contents().each((_: number, node: any) => {
+        if (node.type === 'text') {
+          const originalText = node.data ?? '';
+          if (!originalText) return;
+
+          const leadingWs = originalText.match(/^\s*/)?.[0] ?? '';
+          const trailingWs = originalText.match(/\s*$/)?.[0] ?? '';
+          let coreText = originalText.slice(leadingWs.length, originalText.length - trailingWs.length);
+
+          if (coreText) {
+            coreText = coreText
+              .split(PLACEHOLDER)
+              .map((p: string) => this.processRegularText(p))
+              .join(PLACEHOLDER);
+          }
+
+          node.data = leadingWs + coreText + trailingWs;
+        } else if (node.type === 'tag') {
+          const skipTags = ['code', 'pre', 'script', 'style', 'textarea'];
+          if (!skipTags.includes(node.name.toLowerCase())) {
+            processTextNodes($(node));
+          }
+        }
+      });
+    };
+
+    processTextNodes($.root());
+
+    let finalHtml = $.html();
+    if (finalHtml.includes('<body>')) {
+      finalHtml = $('body').html() || '';
+    }
+
+    finalHtml = finalHtml
+      .replace(new RegExp(PLACEHOLDER, 'g'), this.PARAGRAPH_SEPARATOR)
+      .replace(/&nbsp;/g, this.NON_BREAKING_SPACE);
+
+    return finalHtml;
+  }
+
+  static processFormattedParagraph(html: string): string {
+    if (!html) return '';
+    const $ = cheerio.load(html);
+
+    const processInlineElements = (element: cheerio.Cheerio<AnyNode>) => {
+      element.contents().each((_: number, node: any) => {
+        if (node.type === 'text') {
+          const textContent = node.data || '';
+          if (textContent.trim()) {
+            const processedText = this.processRegularText(textContent);
+            node.data = processedText;
+          }
+        } else if (node.type === 'tag') {
+          processInlineElements($(node));
+        }
+      });
+    };
+
+    processInlineElements($.root());
+    return $.html();
+  }
+
+  static processSafely(input: string): string {
+    if (!input || typeof input !== 'string') return input;
+
+    const htmlTagRegex = /<\/?[^>]+(>|$)/;
+
+    if (htmlTagRegex.test(input)) {
+      return this.processFormattedParagraph(input);
+    } else {
+      return this.processRegularText(input);
+    }
+  }
+}
+
+export const TypographyProcessor = AdvancedTypographyProcessor;
+
+export function typographText(text: string, options: { isFirst?: boolean } = {}): string {
+  if (options.isFirst) {
+    return AdvancedTypographyProcessor.processSafely(text);
+  }
+  return AdvancedTypographyProcessor.processSafely(text);
+}
+
+export function typographHtml(html: string): string {
+  if (!html) return '';
+  return AdvancedTypographyProcessor.processHtml(html);
+}

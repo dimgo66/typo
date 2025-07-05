@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TypographyProcessor } from "@/lib/typography";
+import { TypographyCore } from '@/lib/core/TypographyCore';
 import DocsCounter from "@/components/DocsCounter";
 
 export default function Home() {
-  const [text, setText] = useState("");
+  const [text, setText] = useState("Пример текста для типографики"); // Временная замена
   const [processedText, setProcessedText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -24,7 +24,7 @@ export default function Home() {
       setMessage("Введите текст для обработки");
       return;
     }
-    const processed = TypographyProcessor.process(text);
+    const processed = TypographyCore.typographText(text);
     setProcessedText(processed);
     setMessage("Текст успешно обработан");
   };
@@ -108,7 +108,7 @@ export default function Home() {
   };
 
   const loadExample = () => {
-    setText(TypographyProcessor.getExampleText());
+    setText("Пример текста для типографики");
     setMessage("Загружен пример текста");
   };
 
