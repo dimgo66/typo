@@ -15,29 +15,195 @@ function transliterate(str: string): string {
 function processDocxXml(xml: string): string {
   const $ = cheerio.load(xml, { xmlMode: true });
 
+  // Функция для обработки всех <w:br/> в документе
+  function processAllBreaks() {
+    let hasBreaks = true;
+    
+    // Продолжаем обработку пока есть <w:br/> элементы
+    while (hasBreaks) {
+      const breaks = $('w\\:br');
+      hasBreaks = breaks.length > 0;
+      
+      if (!hasBreaks) break;
+      
+      // Обрабатываем первый найденный <w:br/>
+      const brElement = breaks.first();
+      const parentRun = brElement.closest('w\\:r');
+      const parentParagraph = brElement.closest('w\\:p');
+      
+      if (parentRun.length > 0 && parentParagraph.length > 0) {
+        // Создаем новый параграф
+        const newParagraph = $('<w:p></w:p>');
+        
+        // Копируем свойства параграфа (если есть)
+        const pPr = parentParagraph.find('> w\\:pPr').first();
+        if (pPr.length > 0) {
+          newParagraph.append(pPr.clone());
+        }
+        
+        // Собираем все runs после текущего run с <w:br/>
+        const currentRunIndex = parentParagraph.find('w\\:r').index(parentRun);
+        const allRuns = parentParagraph.find('w\\:r');
+        const runsAfterBreak: any[] = [];
+        
+        allRuns.each((idx, run) => {
+          if (idx > currentRunIndex) {
+            runsAfterBreak.push($(run).clone());
+            $(run).remove();
+          }
+        });
+        
+        // Разделяем текущий run по месту <w:br/>
+        const elementsBeforeBr: any[] = [];
+        const elementsAfterBr: any[] = [];
+        let foundBr = false;
+        
+        parentRun.children().each((_, child) => {
+          const $child = $(child);
+          if ($child.is('w\\:br') && !foundBr) {
+            foundBr = true;
+            // Удаляем только первый <w:br/>
+          } else if (!foundBr) {
+            elementsBeforeBr.push($child.clone());
+          } else {
+            elementsAfterBr.push($child.clone());
+          }
+        });
+        
+        // Очищаем текущий run и добавляем только элементы до <w:br/>
+        parentRun.empty();
+        elementsBeforeBr.forEach(elem => parentRun.append(elem));
+        
+        // Если есть элементы после <w:br/>, создаем новый run в новом параграфе
+        if (elementsAfterBr.length > 0) {
+          const newRun = $('<w:r></w:r>');
+          
+          // Копируем свойства run (если есть)
+          const rPr = parentRun.find('> w\\:rPr').first();
+          if (rPr.length > 0 && elementsBeforeBr.some(e => $(e).is('w\\:rPr'))) {
+            // Если rPr уже был в elementsBeforeBr, берем его из исходного run
+            const originalRPr = parentRun.children().filter((_, el) => $(el).is('w\\:rPr')).first();
+            if (originalRPr.length > 0) {
+              newRun.append($(originalRPr).clone());
+            }
+          } else if (rPr.length > 0) {
+            newRun.append(rPr.clone());
+          }
+          
+          elementsAfterBr.forEach(elem => newRun.append(elem));
+          newParagraph.append(newRun);
+        }
+        
+        // Добавляем все runs, которые были после текущего run
+        runsAfterBreak.forEach(run => newParagraph.append(run));
+        
+        // Вставляем новый параграф после текущего
+        parentParagraph.after(newParagraph);
+        
+        // Удаляем обработанный <w:br/>
+        brElement.remove();
+      } else {
+        // Если <w:br/> не в run или paragraph, просто удаляем его
+        brElement.remove();
+      }
+    }
+  }
+  
+  // Обрабатываем все <w:br/> элементы
+  processAllBreaks();
+
   $('w\\:p').each((_, p) => {
     const paragraph = $(p);
-    const textNodes = paragraph.find('w\\:t');
+    const runs = paragraph.find('w\\:r');
 
-    if (textNodes.length > 0) {
-      // 1. Собрать весь текст из всех узлов <w:t> в параграфе
-      const fullText = textNodes.map((_, t) => $(t).text()).get().join('');
+    if (runs.length > 0) {
+      // Собираем все текстовые узлы и их содержимое
+      const textNodes: Array<{node: any; text: string}> = [];
+      
+      runs.each((_, r) => {
+        const run = $(r);
+        const textNode = run.find('w\\:t');
+        if (textNode.length > 0) {
+          textNodes.push({
+            node: textNode,
+            text: textNode.text()
+          });
+        }
+      });
 
+      // Если нет текста, пропускаем
+      if (textNodes.length === 0) return;
+
+      // Собираем весь текст параграфа
+      const fullText = textNodes.map(item => item.text).join('');
+      
       // Пропускаем обработку, если абзац пуст или содержит только пробелы
       if (fullText.trim() === '') {
         return;
       }
 
-
-
-      // 2. Обработать собранный текст
+      // Обрабатываем текст типографикой
       const processedText = TypographyCore.typographText(fullText);
 
-      // 3. Заменить содержимое параграфа
-      // Помещаем весь обработанный текст в первый узел <w:t>
-      textNodes.first().text(processedText);
-      // Удаляем все остальные узлы <w:t>, чтобы избежать дублирования
-      textNodes.slice(1).remove();
+      // Если есть только один run, просто заменяем текст
+      if (textNodes.length === 1) {
+        const preserveSpace = textNodes[0].node.attr('xml:space');
+        textNodes[0].node.text(processedText);
+        if (preserveSpace || processedText.includes(' ')) {
+          textNodes[0].node.attr('xml:space', 'preserve');
+        }
+        return;
+      }
+
+      // Для нескольких runs: создаем соответствие между символами до и после обработки
+      let origIndex = 0;
+      let procIndex = 0;
+      const charMapping: number[] = [];
+
+      // Строим карту соответствия символов
+      while (origIndex < fullText.length && procIndex < processedText.length) {
+        charMapping[origIndex] = procIndex;
+        
+        if (fullText[origIndex] === processedText[procIndex]) {
+          origIndex++;
+          procIndex++;
+        } else {
+          // Если символы не совпадают, значит был добавлен спецсимвол
+          // Проверяем, что это добавленный спецсимвол
+          const charCode = processedText.charCodeAt(procIndex);
+          if (charCode === 0xA0 || // NBSP
+              charCode === 0x2009 || // Thin space
+              charCode === 0x2011 || // Non-breaking hyphen
+              charCode === 0x2013 || // En dash
+              charCode === 0x2014) { // Em dash
+            procIndex++;
+          } else {
+            // Если это не спецсимвол, ищем соответствие дальше
+            origIndex++;
+          }
+        }
+      }
+      // Добавляем последнюю позицию
+      charMapping[fullText.length] = processedText.length;
+
+      // Распределяем обработанный текст обратно по runs
+      let currentOrigPos = 0;
+      
+      textNodes.forEach(item => {
+        const runLength = item.text.length;
+        const startProc = charMapping[currentOrigPos] || 0;
+        const endProc = charMapping[currentOrigPos + runLength] || processedText.length;
+        
+        const newText = processedText.substring(startProc, endProc);
+        const preserveSpace = item.node.attr('xml:space');
+        
+        item.node.text(newText);
+        if (preserveSpace || newText.includes(' ')) {
+          item.node.attr('xml:space', 'preserve');
+        }
+        
+        currentOrigPos += runLength;
+      });
     }
   });
 
@@ -92,14 +258,13 @@ export async function POST(request: NextRequest) {
     const docxBuffer = zip.generate({ type: 'nodebuffer' });
 
     const originalName = file.name.replace(/\.docx$/i, '');
-    const transliteratedName = transliterate(originalName);
-    const newFileName = `${transliteratedName}.docx`;
+    const newFileName = `${originalName}_ред.docx`;
 
     return new NextResponse(docxBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(newFileName)}"; filename*=UTF-8''${encodeURIComponent(originalName + '.docx')}`,
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(newFileName)}"; filename*=UTF-8''${encodeURIComponent(newFileName)}`,
         'Content-Length': docxBuffer.length.toString(),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',

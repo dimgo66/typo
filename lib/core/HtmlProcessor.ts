@@ -15,7 +15,7 @@ export class HtmlProcessor {
     } else {
       throw new Error(`Unsupported language: ${language}`);
     }
-    this.astProcessor = new HtmlASTProcessor(this.processor);
+    this.astProcessor = new HtmlASTProcessor(this.processor, language);
   }
 
   process(html: string): string {

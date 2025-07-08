@@ -1,5 +1,7 @@
 import * as cheerio from 'cheerio';
 import { TextProcessor } from "./TextProcessor";
+import { TextProcessorRU } from './TextProcessorRU';
+import { TextProcessorEN } from './TextProcessorEN';
 
 interface ASTNode {
   type: 'element' | 'text';
@@ -11,9 +13,11 @@ interface ASTNode {
 
 export class HtmlASTProcessor {
   private processor: TextProcessor;
+  private lang: string;
 
-  constructor(processor: TextProcessor) {
+  constructor(processor: TextProcessor, lang: string) {
     this.processor = processor;
+    this.lang = lang;
   }
 
   parse(html: string): ASTNode[] {
@@ -56,10 +60,15 @@ export class HtmlASTProcessor {
     const skipProcessing = parentTag === 'pre' || parentTag === 'code';
     
     if (node.type === 'text' && node.content && !skipProcessing) {
-      return {
-        ...node,
-        content: this.processor.process(node.content)
-      };
+      // Если текст начинается с пробела и есть родительский тег, сохраняем первый пробел
+      if (node.content.startsWith(' ') && parentTag) {
+        node.content = ' ' + node.content.trimStart();
+      } else {
+        node.content = node.content.trimStart();
+      }
+      
+      // Используем переданный процессор
+      node.content = this.processor.processText(node.content);
     }
     
     if (node.children) {
@@ -121,6 +130,8 @@ export class HtmlASTProcessor {
       }
     });
     
-    return this.serialize(processedAst);
+    const processedHtml = this.serialize(processedAst);
+    
+    return processedHtml.trim();
   }
 }

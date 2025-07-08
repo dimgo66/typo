@@ -1,7 +1,7 @@
 import { TextProcessor } from './TextProcessor';
 
 export class TextProcessorEN extends TextProcessor {
-  protected processText(text: string): string {
+  public processText(text: string): string {
     // Обработка неразрывных пробелов
     text = text.replace(/(\s)([a-z]{1,2})\.(\s|$)/gi, '$1$2 $3');
     

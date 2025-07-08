@@ -1,4 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <rect width="16" height="16" rx="3" fill="#2563eb"/>
-  <text x="8" y="12" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" font-weight="bold" fill="#fff">Т</text>
-</svg> 
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Фон -->
+  <rect width="32" height="32" rx="6" fill="#1a1a1a"/>
+  
+  <!-- Градиентная заливка -->
+  <defs>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#818cf8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a78bfa;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Буква Т с типографскими элементами -->
+  <g fill="url(#textGradient)">
+    <!-- Основная буква T -->
+    <path d="M6 8h20v4h-8v12h-4V12H6V8z"/>
+    
+    <!-- Кавычка-ёлочка слева -->
+    <path d="M4 6l2-2v2l-2 2V6z" opacity="0.8"/>
+    
+    <!-- Кавычка-ёлочка справа -->
+    <path d="M26 24l2 2v-2l-2-2v2z" opacity="0.8"/>
+    
+    <!-- Многоточие внизу -->
+    <circle cx="11" cy="28" r="1" opacity="0.6"/>
+    <circle cx="16" cy="28" r="1" opacity="0.6"/>
+    <circle cx="21" cy="28" r="1" opacity="0.6"/>
+  </g>
+  
+  <!-- Акцентная линия -->
+  <rect x="14" y="24" width="4" height="1" fill="#fbbf24" opacity="0.9"/>
+</svg>

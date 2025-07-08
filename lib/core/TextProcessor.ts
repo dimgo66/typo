@@ -18,5 +18,7 @@ export abstract class TextProcessor {
     return processed;
   }
 
-  protected abstract processText(text: string): string;
+  public processText(text: string): string {
+    return text;
+  }
 }
