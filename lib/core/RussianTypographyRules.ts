@@ -9,22 +9,13 @@ export interface TypographyRule {
 }
 
 export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
-  // Приоритет -2.2: Удаление пробелов в начале строки (но сохраняем табуляции)
+  // Приоритет -2: Универсальное удаление лишних пробелов в начале строки
   {
-    name: 'remove_leading_spaces_keep_tabs',
-    priority: -2.2,
-    pattern: /^(\t*)[ \u2009]+/gm,
+    name: 'remove_leading_spaces_universal',
+    priority: -2,
+    pattern: /^(\t*)[ ]+/gm,
     replacement: '$1',
-    description: 'Удаление пробелов в начале строки после табуляций (сохраняем табуляции для поэзии, не трогаем NBSP)'
-  },
-
-  // Приоритет -2.1: Удаление обычных пробелов в начале строки (но не NBSP)
-  {
-    name: 'remove_leading_spaces_no_tabs',
-    priority: -2.1,
-    pattern: /^[ \u2009]+/gm,
-    replacement: '',
-    description: 'Удаление обычных пробелов в начале строки (обычные пробелы и тонкие пробелы, но не NBSP)'
+    description: 'Удаление обычных пробелов в начале строки (сохраняем табуляции для поэзии и NBSP для типографики)'
   },
 
   // Приоритет -1: Удаление пробелов после символа абзаца
