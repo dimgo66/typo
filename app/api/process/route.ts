@@ -221,14 +221,32 @@ function processDocxXml(xml: string): string {
   // ФИНАЛЬНАЯ ОЧИСТКА: проходимся по всем параграфам и удаляем пробелы в начале
   $('w\\:p').each((_, p) => {
     const paragraph = $(p);
-    const firstTextNode = paragraph.find('w\\:t').first();
-    if (firstTextNode.length > 0) {
-      const text = firstTextNode.text();
-      const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
-      if (text !== cleanedText) {
-        firstTextNode.text(cleanedText);
+    const allTextNodes = paragraph.find('w\\:t');
+    
+    // Проходимся по всем текстовым узлам в параграфе
+    let foundFirstNonEmptyNode = false;
+    allTextNodes.each((_, node) => {
+      const $node = $(node);
+      const text = $node.text();
+      
+      if (!foundFirstNonEmptyNode && text.trim() !== '') {
+        // Первый непустой узел - удаляем пробелы в начале
+        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
+        if (text !== cleanedText) {
+          $node.text(cleanedText);
+          if (cleanedText.includes(' ')) {
+            $node.attr('xml:space', 'preserve');
+          }
+        }
+        foundFirstNonEmptyNode = true;
+      } else if (!foundFirstNonEmptyNode && text.trim() === '') {
+        // Пустой узел в начале - удаляем пробелы
+        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
+        if (text !== cleanedText) {
+          $node.text(cleanedText);
+        }
       }
-    }
+    });
   });
 
   // Удаление лишних пустых параграфов для чистоты документа
