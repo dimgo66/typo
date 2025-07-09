@@ -9,40 +9,16 @@ export interface TypographyRule {
 }
 
 export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
-  // Приоритет -4: Удаление пробелов в самом начале текста
+  // Приоритет -2: Универсальное удаление пробелов в начале строк
   {
-    name: 'remove_leading_spaces_at_start',
-    priority: -4,
-    pattern: /^[ \t\f\v]+/,
-    replacement: '',
-    description: 'Удаление всех пробелов в самом начале текста'
-  },
-
-  // Приоритет -3: Удаление пробелов после переводов строк
-  {
-    name: 'remove_spaces_after_newline',
-    priority: -3,
-    pattern: /(\r?\n)(\t*)[ ]+/g,
-    replacement: '$1$2',
-    description: 'Удаление пробелов после переводов строк (сохраняем табуляции)'
-  },
-
-  // Приоритет -2: Универсальное удаление лишних пробелов в начале строки
-  {
-    name: 'remove_leading_spaces_universal',
+    name: 'remove_leading_spaces_comprehensive',
     priority: -2,
-    pattern: /^(\t*)[ \f\v]+/gm,
-    replacement: '$1',
-    description: 'Удаление обычных пробелов в начале строки (сохраняем табуляции для поэзии и NBSP)'
-  },
-
-  // Приоритет -1: Удаление пробелов после символа абзаца
-  {
-    name: 'remove_spaces_after_paragraph_symbol',
-    priority: -1,
-    pattern: /¶[ \t\u00A0\u2009]+/g,
-    replacement: '¶',
-    description: 'Удаление пробелов после символа абзаца (¶)'
+    pattern: /(^|\r?\n)(\t*)[ \f\v]+/gm,
+    replacement: (match: string, lineStart: string, tabs: string) => {
+      // Сохраняем табуляции для поэзии
+      return lineStart + tabs;
+    },
+    description: 'Универсальное удаление обычных пробелов в начале строк (сохраняем табуляции для поэзии и NBSP для типографики)'
   },
 
   // Приоритет 1: Базовая очистка
@@ -489,14 +465,6 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Замена символов перевода строки на знак абзаца (¶)'
   },
 
-  // Приоритет 200: Финальное удаление пробелов после символа абзаца
-  {
-    name: 'final_cleanup_spaces_after_paragraph',
-    priority: 200,
-    pattern: /¶[ \f\v]+/g,
-    replacement: '¶',
-    description: 'Финальное удаление пробелов после символа абзаца'
-  }
 ];
 
 export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN_TYPOGRAPHY_RULES): string {
@@ -513,9 +481,6 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
     }
   }
   
-  // Финальная очистка пробелов в начале строк (после всех преобразований)
-  // Удаляем обычные пробелы после ¶, сохраняя табуляции
-  result = result.replace(/¶(\t*)[ ]+/g, '¶$1');
   
   return result;
 }
