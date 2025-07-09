@@ -490,6 +490,11 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
     }
   }
   
+  // Финальная очистка - удаляем любые пробелы после символа абзаца
+  result = result.replace(/¶[ \t\u00A0\u2009]+/g, '¶');
+  
+  // Дополнительная очистка - удаляем пробелы в начале строк после символа абзаца (сохраняем табуляции)
+  result = result.replace(/¶(\t*)[ \u00A0\u2009]+/g, '¶$1');
   
   return result;
 }
