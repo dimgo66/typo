@@ -465,6 +465,15 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Замена символов перевода строки на знак абзаца (¶)'
   },
 
+  // Приоритет 101: Простое удаление пробелов после символа абзаца
+  {
+    name: 'clean_spaces_after_paragraph',
+    priority: 101,
+    pattern: /¶ +/g,
+    replacement: '¶',
+    description: 'Удаление простых пробелов после символа абзаца'
+  },
+
 ];
 
 export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN_TYPOGRAPHY_RULES): string {
