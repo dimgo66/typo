@@ -143,7 +143,10 @@ function processDocxXml(xml: string): string {
       }
 
       // Обрабатываем текст типографикой
-      const processedText = TypographyCore.typographText(fullText);
+      let processedText = TypographyCore.typographText(fullText);
+      
+      // Дополнительная очистка пробелов в начале строк (после типографики)
+      processedText = processedText.replace(/^[ \t\u00A0\u2009]+/gm, '');
 
       // Если есть только один run, просто заменяем текст
       if (textNodes.length === 1) {
