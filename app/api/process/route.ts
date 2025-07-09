@@ -141,12 +141,20 @@ function processDocxXml(xml: string): string {
       if (fullText.trim() === '') {
         return;
       }
+      
+      // Специальная очистка: удаляем пробелы в начале первого текстового узла
+      if (textNodes.length > 0 && textNodes[0].text) {
+        textNodes[0].text = textNodes[0].text.replace(/^[ \t\u00A0\u2009]+/, '');
+      }
 
       // Обрабатываем текст типографикой
       let processedText = TypographyCore.typographText(fullText);
       
       // Дополнительная очистка пробелов в начале строк (после типографики)
       processedText = processedText.replace(/^[ \t\u00A0\u2009]+/gm, '');
+      
+      // РАДИКАЛЬНАЯ ОЧИСТКА: удаляем ВСЕ пробелы в начале обработанного текста
+      processedText = processedText.replace(/^[ \t\u00A0\u2009]+/, '');
 
       // Если есть только один run, просто заменяем текст
       if (textNodes.length === 1) {
@@ -207,6 +215,19 @@ function processDocxXml(xml: string): string {
         
         currentOrigPos += runLength;
       });
+    }
+  });
+
+  // ФИНАЛЬНАЯ ОЧИСТКА: проходимся по всем параграфам и удаляем пробелы в начале
+  $('w\\:p').each((_, p) => {
+    const paragraph = $(p);
+    const firstTextNode = paragraph.find('w\\:t').first();
+    if (firstTextNode.length > 0) {
+      const text = firstTextNode.text();
+      const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
+      if (text !== cleanedText) {
+        firstTextNode.text(cleanedText);
+      }
     }
   });
 
