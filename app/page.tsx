@@ -32,6 +32,14 @@ export default function Home() {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
+      // Проверяем размер файла (50MB = 50 * 1024 * 1024 байт)
+      if (selectedFile.size > 50 * 1024 * 1024) {
+        setMessage("Файл слишком большой. Максимальный размер: 50MB");
+        setFile(null);
+        // Очищаем input
+        event.target.value = "";
+        return;
+      }
       setFile(selectedFile);
       setMessage("");
     }
@@ -289,7 +297,7 @@ export default function Home() {
                   Выберите файл:
                 </label>
                 <div className="mb-2 text-gray-700 text-sm">
-                  Поддерживается только <b>.docx</b> (Microsoft Word).
+                  Поддерживается только <b>.docx</b> (Microsoft Word). Максимальный размер: <b>50MB</b>.
                   Форматирование и сноски сохраняются.
                 </div>
                 <input

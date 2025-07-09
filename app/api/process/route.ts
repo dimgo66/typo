@@ -224,6 +224,14 @@ function processDocxXml(xml: string): string {
   return $.xml();
 }
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+  },
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -237,8 +245,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Поддерживаются только файлы DOCX.' }, { status: 400 });
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Файл слишком большой (максимум 10MB)' }, { status: 400 });
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Файл слишком большой (максимум 50MB)' }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
