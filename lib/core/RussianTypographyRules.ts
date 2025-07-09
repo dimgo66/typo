@@ -9,8 +9,26 @@ export interface TypographyRule {
 }
 
 export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
+  // Приоритет -4: Удаление пробелов в самом начале текста
+  {
+    name: 'remove_leading_spaces_at_start',
+    priority: -4,
+    pattern: /^[ \t\f\v]+/,
+    replacement: '',
+    description: 'Удаление всех пробелов в самом начале текста'
+  },
+
+  // Приоритет -3: Удаление пробелов после переводов строк
+  {
+    name: 'remove_spaces_after_newline',
+    priority: -3,
+    pattern: /(\r?\n)(\t*)[ ]+/g,
+    replacement: '$1$2',
+    description: 'Удаление пробелов после переводов строк (сохраняем табуляции)'
+  },
+
   // Приоритет -2: Универсальное удаление лишних пробелов в начале строки
-{
+  {
     name: 'remove_leading_spaces_universal',
     priority: -2,
     pattern: /^(\t*)[ \f\v]+/gm,
