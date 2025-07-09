@@ -10,12 +10,12 @@ export interface TypographyRule {
 
 export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   // Приоритет -2: Универсальное удаление лишних пробелов в начале строки
-  {
+{
     name: 'remove_leading_spaces_universal',
     priority: -2,
-    pattern: /^(\t*)[ ]+/gm,
+    pattern: /^(\t*)[ \f\v]+/gm,
     replacement: '$1',
-    description: 'Удаление обычных пробелов в начале строки (сохраняем табуляции для поэзии и NBSP для типографики)'
+    description: 'Удаление обычных пробелов в начале строки (сохраняем табуляции для поэзии и NBSP)'
   },
 
   // Приоритет -1: Удаление пробелов после символа абзаца
@@ -469,6 +469,15 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     pattern: /\r?\n/g,
     replacement: '¶',
     description: 'Замена символов перевода строки на знак абзаца (¶)'
+  },
+
+  // Приоритет 200: Финальное удаление пробелов после символа абзаца
+  {
+    name: 'final_cleanup_spaces_after_paragraph',
+    priority: 200,
+    pattern: /¶[ \f\v]+/g,
+    replacement: '¶',
+    description: 'Финальное удаление пробелов после символа абзаца'
   }
 ];
 
@@ -485,6 +494,10 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
       result = result.replace(rule.pattern, rule.replacement);
     }
   }
+  
+  // Финальная очистка пробелов в начале строк (после всех преобразований)
+  // Удаляем обычные пробелы после ¶, сохраняя табуляции
+  result = result.replace(/¶(\t*)[ ]+/g, '¶$1');
   
   return result;
 }
