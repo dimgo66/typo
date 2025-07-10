@@ -120,6 +120,11 @@ export default function Home() {
     setMessage("Загружен пример текста");
   };
 
+  // Функция для замены символов ¶ на переводы строк для отображения в UI
+  const formatTextForDisplay = (text: string) => {
+    return text.replace(/¶/g, '\n');
+  };
+
   const downloadProcessedText = () => {
     if (!processedText) return;
 
@@ -276,7 +281,7 @@ export default function Home() {
                     </button>
                   </div>
                   <textarea
-                    value={processedText}
+                    value={formatTextForDisplay(processedText)}
                     readOnly
                     className="w-full h-40 p-4 border border-green-300 rounded-lg resize-none bg-green-50 font-mono text-sm"
                   />
