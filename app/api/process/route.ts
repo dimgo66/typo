@@ -266,13 +266,9 @@ function processDocxXml(xml: string): string {
   return $.xml();
 }
 
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-  },
-}
+// Конфигурация для API Route в App Router
+export const maxDuration = 60; // максимальное время выполнения (секунды)
+export const dynamic = 'force-dynamic'; // принудительное динамическое рендеринг
 
 export async function POST(request: NextRequest) {
   try {
