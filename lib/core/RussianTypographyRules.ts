@@ -442,7 +442,13 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
   // Применяем правила только один раз
   for (const rule of sortedRules) {
     const prevResult = result;
-    result = result.replace(rule.pattern, rule.replacement);
+    
+    // Обработка разных типов replacement: string или function
+    if (typeof rule.replacement === 'string') {
+      result = result.replace(rule.pattern, rule.replacement);
+    } else {
+      result = result.replace(rule.pattern, rule.replacement);
+    }
     
     // Проверка на бесконечные циклы (если правило не изменило текст, продолжаем)
     if (result === prevResult) {
