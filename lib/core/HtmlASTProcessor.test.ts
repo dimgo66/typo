@@ -4,7 +4,6 @@ import { LRUCache } from 'lru-cache';
 import { TextProcessorRU } from './TextProcessorRU';
 
 class MockTextProcessor extends TextProcessor {
-  protected cache = new LRUCache<string, string>({ max: 1000 });
   
   public processText(text: string): string {
     return text.toUpperCase();

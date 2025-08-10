@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TypographyCore } from '@/lib/core/TypographyCore';
+import { TypographyCore } from "@/lib/core/TypographyCore";
 import DocsCounter from "@/components/DocsCounter";
 
 export default function Home() {
@@ -106,7 +106,6 @@ export default function Home() {
         const ns = window.location.hostname.replace(/\./g, "_");
         fetch("/api/docs", { method: "POST" }).catch(() => {});
       } catch (_) {}
-
     } catch (error) {
       console.error("Ошибка:", error);
       setMessage("Произошла ошибка при обработке файла");
@@ -122,7 +121,7 @@ export default function Home() {
 
   // Функция для замены символов ¶ на переводы строк для отображения в UI
   const formatTextForDisplay = (text: string) => {
-    return text.replace(/¶/g, '\n');
+    return text.replace(/¶/g, "\n");
   };
 
   const downloadProcessedText = () => {
@@ -302,8 +301,9 @@ export default function Home() {
                   Выберите файл:
                 </label>
                 <div className="mb-2 text-gray-700 text-sm">
-                  Поддерживается только <b>.docx</b> (Microsoft Word). Максимальный размер: <b>50MB</b>.
-                  Форматирование и сноски сохраняются.
+                  Поддерживается только <b>.docx</b> (Microsoft Word).
+                  Максимальный размер: <b>50MB</b>. Форматирование и сноски
+                  сохраняются.
                 </div>
                 <input
                   type="file"

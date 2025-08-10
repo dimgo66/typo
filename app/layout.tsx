@@ -24,10 +24,10 @@ export const metadata = {
         url: "/og-image.webp",
         width: 1200,
         height: 630,
-        alt: "Типографский процессор"
-      }
-    ]
-  }
+        alt: "Типографский процессор",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

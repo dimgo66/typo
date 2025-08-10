@@ -8,6 +8,9 @@ export interface TypographyRule {
   description: string;
 }
 
+// Кеш отсортированных правил для оптимизации производительности
+let CACHED_SORTED_RULES: TypographyRule[] | null = null;
+
 export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   // Приоритет -2: Универсальное удаление пробелов в начале строк
   {
@@ -39,11 +42,20 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Замена короткого тире на длинное в конце строфы'
   },
 
+  // Приоритет 1.92: Двойной дефис в начале строки → эм-тире
+  {
+    name: 'double_hyphen_at_line_start',
+    priority: 1.92,
+    pattern: /^(\s*)--[\s\u00A0]+/gm,
+    replacement: `$1${TC.EM_DASH} `,
+    description: 'Замена двойного дефиса на эм-тире в начале строки (диалоги)'
+  },
+
   // Приоритет 1.93: Замена дефиса на длинное тире в начале строки, если нет пробела после него
   {
     name: 'dash_to_em_dash_no_space',
     priority: 1.93,
-    pattern: /^(\s*)-(?!\s)/gm,
+    pattern: /^(\s*)-(?![\s\u00A0])/gm,
     replacement: `$1${TC.EM_DASH} `,
     description: 'Замена дефиса на длинное тире и добавление пробела в начале строки'
   },
@@ -52,7 +64,7 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   {
     name: 'dash_to_em_dash_at_line_start',
     priority: 1.94,
-    pattern: /^(\s*)-\s/gm,
+    pattern: /^(\s*)-[\s\u00A0]+/gm,
     replacement: `$1${TC.EM_DASH} `,
     description: 'Замена обычного дефиса на эм-тире в начале строки в диалогах'
   },
@@ -61,7 +73,7 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   {
     name: 'hyphen_to_em_dash_at_line_start',
     priority: 1.95,
-    pattern: /^(\s*)–\s/gm,
+    pattern: /^(\s*)–[\s\u00A0]+/gm,
     replacement: `$1${TC.EM_DASH} `,
     description: 'Замена короткого дефиса на эм-тире в начале строки в диалогах'
   },
@@ -70,7 +82,7 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   {
     name: 'dash_to_em_dash',
     priority: 2,
-    pattern: /(\S)\s+-\s+(\S)/g,
+    pattern: /(\S)[ \t\u00A0]+-[ \t\u00A0]+(\S)/g,
     replacement: (match: string, before: string, after: string) => {
       // Не заменяем, если это диапазон чисел, дат или римских цифр
       if (/\d$/.test(before) && /^\d/.test(after)) return match;
@@ -79,14 +91,38 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
       
       return `${before}${TC.NBSP}${TC.EM_DASH} ${after}`;
     },
-    description: 'Замена дефиса на длинное тире в предложениях'
+    description: 'Замена дефиса на длинное тире в предложениях (учёт обычных и неразрывных пробелов)'
+  },
+
+  // Приоритет 2.2: Двойной дефис между словами → эм-тире с правильными пробелами
+  {
+    name: 'double_hyphen_between_words',
+    priority: 2.2,
+    pattern: /(\S)[ \t\u00A0]*--[ \t\u00A0]*(\S)/g,
+    replacement: (match: string, before: string, after: string) => {
+      // Не заменяем в числовых диапазонах (на всякий случай), хотя там редко бывает двойной дефис
+      if (/\d$/.test(before) && /^\d/.test(after)) return match;
+      if (/^[IVXLCDM]+$/.test(before) && /^[IVXLCDM]+/.test(after)) return match;
+      if (/\d{4}$/.test(before) && /^\d{4}/.test(after)) return match;
+      return `${before}${TC.NBSP}${TC.EM_DASH} ${after}`;
+    },
+    description: 'Обработка двойного дефиса между словами'
+  },
+
+  // Приоритет 2.21: Остаточные двойные дефисы → эм-тире
+  {
+    name: 'double_hyphen_fallback',
+    priority: 2.21,
+    pattern: /--/g,
+    replacement: TC.EM_DASH,
+    description: 'Замена любых оставшихся двойных дефисов на эм-тире'
   },
 
   // Приоритет 2.5: Замена коротких тире на длинные (кроме числовых диапазонов)
   {
     name: 'en_dash_to_em_dash',
     priority: 2.5,
-    pattern: /(\S)[ \t]*–[ \t]*(\S)/g,
+    pattern: /(\S)[ \t\u00A0]*–[ \t\u00A0]*(\S)/g,
     replacement: (match: string, before: string, after: string) => {
       // Не заменяем, если это диапазон чисел, дат или римских цифр
       if (/\d$/.test(before) && /^\d/.test(after)) return match;
@@ -95,7 +131,7 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
       
       return `${before}${TC.NBSP}${TC.EM_DASH} ${after}`;
     },
-    description: 'Замена короткого тире на длинное (кроме числовых диапазонов)'
+    description: 'Замена короткого тире на длинное (кроме числовых диапазонов), учитываются неразрывные пробелы'
   },
 
   // Приоритет 3: Обработка числовых диапазонов
@@ -136,62 +172,13 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Неразрывные дефисы в составных словах'
   },
 
-  // Приоритет 5: Однобуквенные предлоги (отдельные правила)
+  // Приоритет 5: Однобуквенные предлоги и союзы (универсальное правило)
   {
-    name: 'preposition_v',
+    name: 'one_letter_prepositions_and_conjunctions',
     priority: 5,
-    pattern: /(^|\s)в /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "в"'
-  },
-  {
-    name: 'preposition_k',
-    priority: 5,
-    pattern: /(^|\s)к /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "к"'
-  },
-  {
-    name: 'preposition_s',
-    priority: 5,
-    pattern: /(^|\s)с /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "с"'
-  },
-  {
-    name: 'preposition_u',
-    priority: 5,
-    pattern: /(^|\s)у /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "у"'
-  },
-  {
-    name: 'preposition_o',
-    priority: 5,
-    pattern: /(^|\s)о /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "о"'
-  },
-  {
-    name: 'preposition_ya',
-    priority: 5,
-    pattern: /(^|\s)я /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "я"'
-  },
-  {
-    name: 'conjunction_i',
-    priority: 5,
-    pattern: /(^|\s)и /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "и"'
-  },
-  {
-    name: 'conjunction_a',
-    priority: 5,
-    pattern: /(^|\s)а /gi,
-    replacement: (match: string, prefix: string) => `${prefix}${match.trim()}${TC.NBSP}`,
-    description: 'Неразрывный пробел после "а"'
+    pattern: /(^|\s)([вксуояиа])\s/gi,
+    replacement: `$1$2${TC.NBSP}`,
+    description: 'Неразрывный пробел после однобуквенных предлогов и союзов (в, к, с, у, о, я, и, а)'
   },
 
   // Приоритет 5.5: Двухбуквенные предлоги
@@ -286,58 +273,22 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Тонкие пробелы в больших числах (5+ цифр)'
   },
 
-  // Приоритет 9.3: Комплексное правило для всех случаев инициалов с фамилией
+  // Приоритет 9.1: Универсальное правило для инициалов и фамилий
   {
-    name: 'comprehensive_initials',
-    priority: 9.3,
-    pattern: /(^|[\s\u00A0])([А-ЯЁ]\.)\s*([А-ЯЁ]\.)\s*([А-ЯЁ][а-яё]+)/g,
-    replacement: `$1$2${TC.NBSP}$3${TC.NBSP}$4`,
-    description: 'Неразрывные пробелы в полных последовательностях инициалов с фамилией'
-  },
-  
-  // Приоритет 9.4: Инициалы (два инициала + фамилия с пробелами)
-  {
-    name: 'initials',
-    priority: 9.4,
-    pattern: /(\b[А-ЯЁ])\.\s+([А-ЯЁ])\.\s+([А-ЯЁ][а-яё]+)/g,
-    replacement: `$1.${TC.NBSP}$2.${TC.NBSP}$3`,
-    description: 'Неразрывные пробелы в инициалах'
-  },
-
-  // Приоритет 9.1: Инициал + фамилия (без пробела)
-  {
-    name: 'initial_dot_surname',
+    name: 'initials_universal',
     priority: 9.1,
-    pattern: /(^|[\s\u00A0])([А-ЯЁ]\.)([А-ЯЁ][а-яё]+)/g,
-    replacement: `$1$2${TC.NBSP}$3`,
-    description: 'Неразрывный пробел между инициалом и фамилией'
-  },
-
-  // Приоритет 9.2: Инициал с пробелом + фамилия
-  {
-    name: 'initial_space_surname',
-    priority: 9.2,
-    pattern: /(^|\s)([А-ЯЁ]\.)\s+([А-ЯЁ][а-яё]+)/g,
-    replacement: `$1$2${TC.NBSP}$3`,
-    description: 'Неразрывный пробел между инициалом с пробелом и фамилией'
-  },
-
-  // Приоритет 9.5: Последовательность инициалов (без пробелов)
-  {
-    name: 'initials_sequence',
-    priority: 9.5,
-    pattern: /([А-ЯЁ]\.)([А-ЯЁ]\.)/g,
-    replacement: `$1${TC.NBSP}$2`,
-    description: 'Неразрывный пробел между инициалами'
-  },
-  
-  // Приоритет 9.6: Последовательность инициалов (с пробелами)
-  {
-    name: 'initials_sequence_spaced',
-    priority: 9.6,
-    pattern: /([А-ЯЁ]\.)\s+([А-ЯЁ]\.)/g,
-    replacement: `$1${TC.NBSP}$2`,
-    description: 'Неразрывные пробелы между инициалами с пробелами'
+    pattern: /([А-ЯЁ]\.)(\s*)([А-ЯЁ]\.)?\s*([А-ЯЁ][а-яё]+)?/g,
+    replacement: (match: string, firstInitial: string, space1: string, secondInitial?: string, surname?: string) => {
+      let result = firstInitial;
+      if (secondInitial) {
+        result += `${TC.NBSP}${secondInitial}`;
+      }
+      if (surname) {
+        result += `${TC.NBSP}${surname}`;
+      }
+      return result;
+    },
+    description: 'Универсальное правило для инициалов и фамилий'
   },
   
   // Приоритет 9.65: Союзы после инициалов
@@ -349,31 +300,19 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Неразрывный пробел перед и после союзов после инициалов'
   },
 
-  // Приоритет 8.8: Неразрывный пробел между фамилией и одним инициалом
+  // Приоритет 8.8: Универсальное правило для фамилии и инициалов
   {
-    name: 'surname_single_initial',
+    name: 'surname_initials_universal',
     priority: 8.8,
-    pattern: /([А-ЯЁ][а-яё]+)\s+([А-ЯЁ]\.)(?!\s*[А-ЯЁ]\.)/g,
-    replacement: `$1${TC.NBSP}$2`,
-    description: 'Неразрывный пробел между фамилией и одним инициалом'
-  },
-
-  // Приоритет 8.9: Неразрывный пробел между фамилией и инициалами (пример: Антонов В. Д.)
-  {
-    name: 'surname_separate_initials',
-    priority: 8.9,
-    pattern: /([А-ЯЁ][а-яё]+)\s+([А-ЯЁ]\.)[ \u00A0]*([А-ЯЁ]\.)/g,
-    replacement: `$1${TC.NBSP}$2${TC.NBSP}$3`,
-    description: 'Неразрывный пробел между фамилией и инициалами (Антонов В. Д.)'
-  },
-
-  // Приоритет 12: Фамилия и инициалы (существующее правило)
-  {
-    name: 'surname_initials',
-    priority: 12,
-    pattern: /(\b[А-ЯЁ][а-яё]+)\s+([А-ЯЁ]\.\s*[А-ЯЁ]?\.?)/g,
-    replacement: `$1${TC.NBSP}$2`,
-    description: 'Неразрывный пробел между фамилией и инициалами'
+    pattern: /([А-ЯЁ][а-яё]+)\s+([А-ЯЁ]\.)\s*([А-ЯЁ]\.)?/g,
+    replacement: (match: string, surname: string, firstInitial: string, secondInitial?: string) => {
+      let result = `${surname}${TC.NBSP}${firstInitial}`;
+      if (secondInitial) {
+        result += `${TC.NBSP}${secondInitial}`;
+      }
+      return result;
+    },
+    description: 'Универсальное правило для фамилии и инициалов'
   },
 
   // Приоритет 13: Сокращения с цифрами
@@ -465,6 +404,15 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Замена символов перевода строки на знак абзаца (¶)'
   },
 
+  // Приоритет 101: Нормализация начала абзаца — дефисы/тире → эм-тире
+  {
+    name: 'paragraph_start_dash_to_em',
+    priority: 101,
+    pattern: /¶(\t*)[ \u00A0]*(?:--|–|-)[ \u00A0]*/g,
+    replacement: `¶$1${TC.EM_DASH} `,
+    description: 'После преобразования переносов в ¶, в начале абзаца приводим дефисы/тире к эм-тире с пробелом'
+  },
+
   // Приоритет 999: Простое удаление пробелов после символа абзаца (выполняется в самом конце)
   {
     name: 'clean_spaces_after_paragraph',
@@ -477,24 +425,91 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
 ];
 
 export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN_TYPOGRAPHY_RULES): string {
-  // Сортируем правила по приоритету
-  const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
-  
+  // Используем кеш для отсортированных правил
+  const sortedRules = (() => {
+    if (rules === RUSSIAN_TYPOGRAPHY_RULES) {
+      if (!CACHED_SORTED_RULES) {
+        CACHED_SORTED_RULES = [...rules].sort((a, b) => a.priority - b.priority);
+      }
+      return CACHED_SORTED_RULES;
+    }
+    // Для пользовательских наборов правил сортируем без кеша
+    return [...rules].sort((a, b) => a.priority - b.priority);
+  })();
+
   let result = text;
-  
+
+  // Применяем правила только один раз
   for (const rule of sortedRules) {
-    if (typeof rule.replacement === 'function') {
-      result = result.replace(rule.pattern, rule.replacement);
-    } else {
-      result = result.replace(rule.pattern, rule.replacement);
+    const prevResult = result;
+    result = result.replace(rule.pattern, rule.replacement);
+    
+    // Проверка на бесконечные циклы (если правило не изменило текст, продолжаем)
+    if (result === prevResult) {
+      continue;
     }
   }
-  
+
   // Финальная очистка - удаляем любые пробелы после символа абзаца
   result = result.replace(/¶[ \t\u00A0\u2009]+/g, '¶');
-  
+
   // Дополнительная очистка - удаляем пробелы в начале строк после символа абзаца (сохраняем табуляции)
   result = result.replace(/¶(\t*)[ \u00A0\u2009]+/g, '¶$1');
+
+  // Дедупликация подряд идущих одинаковых абзацев (устранение повторов)
+  if (result.includes('¶')) {
+    const parts = result.split('¶');
+    const deduped: string[] = [];
+    let prevNormalized: string | undefined;
+    
+    for (let i = 0; i < parts.length; i++) {
+      const cur = parts[i];
+      // Нормализуем для сравнения (удаляем различия в пробелах)
+      const normalized = cur.replace(/[\u00A0\u2009]/g, ' ').trim();
+      
+      if (i === 0 || normalized !== prevNormalized || normalized === '') {
+        deduped.push(cur);
+        prevNormalized = normalized;
+      }
+    }
+    result = deduped.join('¶');
+  }
+
+  // Дедупликация подряд идущих одинаковых предложений внутри абзаца
+  if (result.length > 0) {
+    const normalizeForCompare = (s: string) => s
+      .replace(/[\u00A0\u2009]/g, ' ') // NBSP/THIN -> space
+      .replace(/[\s\t\f\v]+/g, ' ')  // collapse spaces
+      .trim();
+
+    const paragraphSplit = result.split('¶');
+    for (let pi = 0; pi < paragraphSplit.length; pi++) {
+      const p = paragraphSplit[pi];
+      if (!p) continue;
+
+      const segments: string[] = [];
+      const regex = /[^.!?…]+(?:[.!?…]+|$)/g; // грубое разбиение на предложения
+      let m: RegExpExecArray | null;
+      while ((m = regex.exec(p)) !== null) {
+        segments.push(m[0]);
+      }
+      if (segments.length <= 1) continue;
+
+      const newSegments: string[] = [];
+      let prevNorm: string | null = null;
+      for (const seg of segments) {
+        const norm = normalizeForCompare(seg);
+        if (prevNorm !== null && norm.length > 0 && norm === prevNorm) {
+          // пропускаем дублирующееся подряд предложение
+          continue;
+        }
+        newSegments.push(seg);
+        prevNorm = norm;
+      }
+      paragraphSplit[pi] = newSegments.join('');
+    }
+    result = paragraphSplit.join('¶');
+  }
   
   return result;
 }
