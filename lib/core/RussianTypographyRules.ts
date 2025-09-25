@@ -73,7 +73,7 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
   {
     name: 'hyphen_to_em_dash_at_line_start',
     priority: 1.95,
-    pattern: /^(\s*)–[\s\u00A0]+/gm,
+    pattern: /^(\s*)–[\s\u00A0]*/gm,
     replacement: `$1${TC.EM_DASH} `,
     description: 'Замена короткого дефиса на эм-тире в начале строки в диалогах'
   },
@@ -404,6 +404,15 @@ export const RUSSIAN_TYPOGRAPHY_RULES: TypographyRule[] = [
     description: 'Замена символов перевода строки на знак абзаца (¶)'
   },
 
+  // Приоритет 100.5: Удаление простых пробелов перед символом абзаца
+  {
+    name: 'clean_spaces_before_paragraph',
+    priority: 100.5,
+    pattern: / +¶/g,
+    replacement: '¶',
+    description: 'Удаление простых пробелов перед символом абзаца'
+  },
+
   // Приоритет 101: Нормализация начала абзаца — дефисы/тире → эм-тире
   {
     name: 'paragraph_start_dash_to_em',
@@ -456,11 +465,11 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
     }
   }
 
-  // Финальная очистка - удаляем любые пробелы после символа абзаца
-  result = result.replace(/¶[ \t\u00A0\u2009]+/g, '¶');
+  // Финальная очистка - удаляем только пробельные символы после символа абзаца
+  result = result.replace(/¶[ \t\u00A0\u2009]+(?=[ \t\u00A0\u2009])/g, '¶');
 
   // Дополнительная очистка - удаляем пробелы в начале строк после символа абзаца (сохраняем табуляции)
-  result = result.replace(/¶(\t*)[ \u00A0\u2009]+/g, '¶$1');
+  result = result.replace(/¶(\t*)[ \u00A0\u2009]+(?=[ \t\u00A0\u2009])/g, '¶$1');
 
   // Дедупликация подряд идущих одинаковых абзацев (устранение повторов)
   if (result.includes('¶')) {
@@ -473,7 +482,13 @@ export function applySortedRules(text: string, rules: TypographyRule[] = RUSSIAN
       // Нормализуем для сравнения (удаляем различия в пробелах)
       const normalized = cur.replace(/[\u00A0\u2009]/g, ' ').trim();
       
-      if (i === 0 || normalized !== prevNormalized || normalized === '') {
+      // Пропускаем пустые абзацы при сравнении, но добавляем их в результат
+      if (normalized === '') {
+        deduped.push(cur);
+        continue;
+      }
+      
+      if (i === 0 || normalized !== prevNormalized) {
         deduped.push(cur);
         prevNormalized = normalized;
       }

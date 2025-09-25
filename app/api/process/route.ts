@@ -142,19 +142,19 @@ function processDocxXml(xml: string): string {
         return;
       }
       
-      // Специальная очистка: удаляем пробелы в начале первого текстового узла
+      // Специальная очистка: удаляем пробелы в начале первого текстового узла (но сохраняем тире)
       if (textNodes.length > 0 && textNodes[0].text) {
-        textNodes[0].text = textNodes[0].text.replace(/^[ \t\u00A0\u2009]+/, '');
+        textNodes[0].text = textNodes[0].text.replace(/^[ \t\u00A0\u2009]+(?![—–-])/, '');
       }
 
       // Обрабатываем текст типографикой
       let processedText = TypographyCore.typographText(fullText);
       
-      // Дополнительная очистка пробелов в начале строк (после типографики)
-      processedText = processedText.replace(/^[ \t\u00A0\u2009]+/gm, '');
+      // Дополнительная очистка пробелов в начале строк (после типографики, но сохраняем тире)
+      processedText = processedText.replace(/^[ \t\u00A0\u2009]+(?![—–-])/gm, '');
       
-      // РАДИКАЛЬНАЯ ОЧИСТКА: удаляем ВСЕ пробелы в начале обработанного текста
-      processedText = processedText.replace(/^[ \t\u00A0\u2009]+/, '');
+      // РАДИКАЛЬНАЯ ОЧИСТКА: удаляем ВСЕ пробелы в начале обработанного текста (но сохраняем тире)
+      processedText = processedText.replace(/^[ \t\u00A0\u2009]+(?![—–-])/, '');
 
       // Если есть только один run, просто заменяем текст
       if (textNodes.length === 1) {
@@ -179,18 +179,27 @@ function processDocxXml(xml: string): string {
           origIndex++;
           procIndex++;
         } else {
-          // Если символы не совпадают, значит был добавлен спецсимвол
-          // Проверяем, что это добавленный спецсимвол
-          const charCode = processedText.charCodeAt(procIndex);
-          if (charCode === 0xA0 || // NBSP
-              charCode === 0x2009 || // Thin space
-              charCode === 0x2011 || // Non-breaking hyphen
-              charCode === 0x2013 || // En dash
-              charCode === 0x2014) { // Em dash
-            procIndex++;
-          } else {
-            // Если это не спецсимвол, ищем соответствие дальше
+          // Проверяем специальные случаи замены тире
+          const origChar = fullText[origIndex];
+          const procChar = processedText[procIndex];
+          
+          // En-dash → Em-dash замена
+          if ((origChar === '–' && procChar === '—') || 
+              (origChar === '-' && procChar === '—')) {
             origIndex++;
+            procIndex++;
+          }
+          // Если символы не совпадают, проверяем добавленные спецсимволы
+          else {
+            const charCode = processedText.charCodeAt(procIndex);
+            if (charCode === 0xA0 || // NBSP
+                charCode === 0x2009 || // Thin space
+                charCode === 0x2011) { // Non-breaking hyphen
+              procIndex++;
+            } else {
+              // Если это не спецсимвол, ищем соответствие дальше
+              origIndex++;
+            }
           }
         }
       }
@@ -230,8 +239,8 @@ function processDocxXml(xml: string): string {
       const text = $node.text();
       
       if (!foundFirstNonEmptyNode && text.trim() !== '') {
-        // Первый непустой узел - удаляем пробелы в начале
-        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
+        // Первый непустой узел - удаляем пробелы в начале (но сохраняем тире)
+        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+(?![—–-])/, '');
         if (text !== cleanedText) {
           $node.text(cleanedText);
           if (cleanedText.includes(' ')) {
@@ -240,8 +249,8 @@ function processDocxXml(xml: string): string {
         }
         foundFirstNonEmptyNode = true;
       } else if (!foundFirstNonEmptyNode && text.trim() === '') {
-        // Пустой узел в начале - удаляем пробелы
-        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+/, '');
+        // Пустой узел в начале - удаляем пробелы (но сохраняем тире)
+        const cleanedText = text.replace(/^[ \t\u00A0\u2009]+(?![—–-])/, '');
         if (text !== cleanedText) {
           $node.text(cleanedText);
         }
