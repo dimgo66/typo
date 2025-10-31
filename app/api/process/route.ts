@@ -169,7 +169,7 @@ function processDocxXml(xml: string): string {
       // Для нескольких runs: создаем соответствие между символами до и после обработки
       let origIndex = 0;
       let procIndex = 0;
-      const charMapping: number[] = [];
+      const charMapping: number[] = [0]; // Начинаем с 0 для корректного отображения
 
       // Строим карту соответствия символов
       while (origIndex < fullText.length && procIndex < processedText.length) {
@@ -212,9 +212,13 @@ function processDocxXml(xml: string): string {
       textNodes.forEach(item => {
         const runLength = item.text.length;
         const startProc = charMapping[currentOrigPos] || 0;
-        const endProc = charMapping[currentOrigPos + runLength] || processedText.length;
+        const endProc = charMapping[currentOrigPos + runLength] || charMapping[currentOrigPos] || processedText.length;
         
-        const newText = processedText.substring(startProc, endProc);
+        // Проверяем корректность границ
+        const safeStartProc = Math.min(startProc, processedText.length);
+        const safeEndProc = Math.min(endProc, processedText.length);
+        
+        const newText = processedText.substring(safeStartProc, safeEndProc);
         const preserveSpace = item.node.attr('xml:space');
         
         item.node.text(newText);
