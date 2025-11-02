@@ -161,59 +161,46 @@ function processDocxXml(xml: string): string {
         return;
       }
 
-      // Для нескольких runs: создаем соответствие между символами до и после обработки
-      let origIndex = 0;
-      let procIndex = 0;
-      const charMapping: number[] = [0]; // Начинаем с 0 для корректного отображения
-
-      // Строим карту соответствия символов
-      while (origIndex < fullText.length && procIndex < processedText.length) {
-        charMapping[origIndex] = procIndex;
-        
-        if (fullText[origIndex] === processedText[procIndex]) {
-          origIndex++;
-          procIndex++;
-        } else {
-          // Проверяем специальные случаи замены тире
-          const origChar = fullText[origIndex];
-          const procChar = processedText[procIndex];
-          
-          // En-dash → Em-dash замена
-          if ((origChar === '–' && procChar === '—') || 
-              (origChar === '-' && procChar === '—')) {
-            origIndex++;
-            procIndex++;
-          }
-          // Если символы не совпадают, проверяем добавленные спецсимволы
-          else {
-            const charCode = processedText.charCodeAt(procIndex);
-            if (charCode === 0xA0 || // NBSP
-                charCode === 0x2009 || // Thin space
-                charCode === 0x2011) { // Non-breaking hyphen
-              procIndex++;
-            } else {
-              // Если это не спецсимвол, ищем соответствие дальше
-              origIndex++;
-            }
-          }
-        }
-      }
-      // Добавляем последнюю позицию
-      charMapping[fullText.length] = processedText.length;
-
+      // Для нескольких runs: распределяем обработанный текст пропорционально
+      // Это гарантирует, что каждый run получает только свою часть текста
+      const origLength = fullText.length;
+      const procLength = processedText.length;
+      
       // Распределяем обработанный текст обратно по runs
       let currentOrigPos = 0;
+      let usedProcEnd = 0; // Отслеживаем, до какой позиции уже использован обработанный текст
       
-      textNodes.forEach(item => {
+      textNodes.forEach((item, index) => {
         const runLength = item.text.length;
-        const startProc = charMapping[currentOrigPos] || 0;
-        const endProc = charMapping[currentOrigPos + runLength] || charMapping[currentOrigPos] || processedText.length;
         
-        // Проверяем корректность границ
-        const safeStartProc = Math.min(startProc, processedText.length);
-        const safeEndProc = Math.min(endProc, processedText.length);
+        // Вычисляем границы для текущего run на основе его позиции в оригинальном тексте
+        const startRatio = currentOrigPos / origLength;
+        const endRatio = (currentOrigPos + runLength) / origLength;
         
-        const newText = processedText.substring(safeStartProc, safeEndProc);
+        // Вычисляем позиции в обработанном тексте
+        let startProc = Math.floor(startRatio * procLength);
+        let endProc = Math.ceil(endRatio * procLength);
+        
+        // Убеждаемся, что startProc не меньше, чем уже использованная позиция
+        // Это предотвращает дублирование текста
+        startProc = Math.max(startProc, usedProcEnd);
+        
+        // Для последнего run используем весь оставшийся текст
+        if (index === textNodes.length - 1) {
+          endProc = procLength;
+        } else {
+          // Убеждаемся, что endProc не превышает длину обработанного текста
+          endProc = Math.min(endProc, procLength);
+        }
+        
+        // Убеждаемся, что endProc >= startProc
+        endProc = Math.max(endProc, startProc);
+        
+        const newText = processedText.substring(startProc, endProc);
+        
+        // Обновляем позицию использованного текста
+        usedProcEnd = endProc;
+        
         const preserveSpace = item.node.attr('xml:space');
         
         item.node.text(newText);
