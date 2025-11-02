@@ -42,18 +42,20 @@ function processDocxXml(xml: string): string {
         }
         
         // Собираем все runs после текущего run с <w:br/>
-        const currentRunIndex = parentParagraph.find('w\\:r').index(parentRun);
-        const allRuns = parentParagraph.find('w\\:r');
+        const allRuns = parentParagraph.find('w\\:r').toArray();
+        const currentRunIndex = allRuns.findIndex(run => $(run)[0] === parentRun[0]);
         const runsAfterBreak: any[] = [];
         
-        allRuns.each((idx, run) => {
-          if (idx > currentRunIndex) {
-            runsAfterBreak.push($(run).clone());
-            $(run).remove();
-          }
-        });
+        // Собираем runs после текущего (работаем с копией массива, чтобы избежать проблем с изменением DOM)
+        for (let i = currentRunIndex + 1; i < allRuns.length; i++) {
+          const run = $(allRuns[i]);
+          runsAfterBreak.push(run.clone());
+          run.remove();
+        }
         
         // Разделяем текущий run по месту <w:br/>
+        // Сначала сохраняем rPr, если он есть, так как мы будем очищать parentRun
+        const originalRPr = parentRun.find('> w\\:rPr').first();
         const elementsBeforeBr: any[] = [];
         const elementsAfterBr: any[] = [];
         let foundBr = false;
@@ -78,16 +80,9 @@ function processDocxXml(xml: string): string {
         if (elementsAfterBr.length > 0) {
           const newRun = $('<w:r></w:r>');
           
-          // Копируем свойства run (если есть)
-          const rPr = parentRun.find('> w\\:rPr').first();
-          if (rPr.length > 0 && elementsBeforeBr.some(e => $(e).is('w\\:rPr'))) {
-            // Если rPr уже был в elementsBeforeBr, берем его из исходного run
-            const originalRPr = parentRun.children().filter((_, el) => $(el).is('w\\:rPr')).first();
-            if (originalRPr.length > 0) {
-              newRun.append($(originalRPr).clone());
-            }
-          } else if (rPr.length > 0) {
-            newRun.append(rPr.clone());
+          // Копируем свойства run (rPr) в новый run, если они были
+          if (originalRPr.length > 0) {
+            newRun.append(originalRPr.clone());
           }
           
           elementsAfterBr.forEach(elem => newRun.append(elem));
